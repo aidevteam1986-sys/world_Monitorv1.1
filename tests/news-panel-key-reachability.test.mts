@@ -432,7 +432,7 @@ describe('news panel key reachability (#5871)', () => {
     for (const key of ['commodities', 'markets', 'crypto', 'economic', 'supply-chain', 'live-news']) {
       assert.ok(feedCategories.has(key), `expected '${key}' among feed categories`);
     }
-    for (const key of ['commodities', 'commodities-news', 'markets', 'markets-news', 'climate-news']) {
+    for (const key of ['commodities', 'commodities-news', 'markets', 'markets-news', 'live-news']) {
       assert.ok(catalogPanelKeys.has(key), `expected '${key}' in the panel catalog`);
     }
     for (const key of ['heatmap', 'markets', 'commodities', 'live-news']) {

@@ -39,9 +39,9 @@ const EXPECTED_VARIANT_PANEL_SNAPSHOTS: Record<DashboardVariant, {
   enabledCount: number;
   enabledSha256: string;
 }> = {
-  full: { enabledCount: 94, enabledSha256: '924af0171b97b07a89214af5213e5beedc4a3154549ca49e93bbc6789f3ce0a0' },
-  tech: { enabledCount: 38, enabledSha256: 'de9f78179aa2c75301883511ad0bab48fc67cba5cd4eb4445906abf17458a290' },
-  finance: { enabledCount: 60, enabledSha256: 'e9cbe30455e107add242019de29d44335abf9da2a8a44c9c204076ed279bcfe8' },
+  full: { enabledCount: 11, enabledSha256: 'e90c7530914e2d2439fbfc2774c21cc51f30c48cce62cebf2afb7995085976d9' },
+  tech: { enabledCount: 37, enabledSha256: 'a5ffe823ca9b8bde138a082abd12a84920afabf97fb265a21dfb063bf3831f91' },
+  finance: { enabledCount: 59, enabledSha256: 'd1dccc682f08213aa2b3597034c375edc7f82b1d5c031e6765c5f14d4090a247' },
   commodity: { enabledCount: 33, enabledSha256: 'b534510a2e814392e3966beb211e300e75a2b33f05c283613dd4f6cee50ddfe0' },
   happy: { enabledCount: 10, enabledSha256: 'f62bbf19c2f7ca75fefeb12a7ba32da991a72f494f91e6d310910d5b7a0468ad' },
   energy: { enabledCount: 26, enabledSha256: '4566c4b42ec77521cddce83cccabe91069ffb211ade9441ef0cf115f11a3cd67' },
@@ -52,9 +52,9 @@ const EXPECTED_VARIANT_DEFAULT_SNAPSHOTS: Record<DashboardVariant, {
   enabled: number;
   sha256: string;
 }> = {
-  full: { total: 119, enabled: 94, sha256: 'b007528a0a457caaf5c3f50633576565ee6bd9e07981db23e3d6f6874929c6f6' },
-  tech: { total: 41, enabled: 38, sha256: '43d7c788ff599baae171f7f46532653370e03ca4d322a8e6614f9f0a1cee5045' },
-  finance: { total: 69, enabled: 60, sha256: 'bb4ad5038f29080ee1631ebce59596da8ef9ae6f88932f0a4e06b1087be141b7' },
+  full: { total: 11, enabled: 11, sha256: '03dae162d4e9cfd2be83e09ccb07cfbde5572f64b00182f6d80308e0ba80f5d8' },
+  tech: { total: 40, enabled: 37, sha256: 'ce10d97982c474213ab9f30294bf9e8438a9faa84cff291bbb9e1533438bd51a' },
+  finance: { total: 68, enabled: 59, sha256: '611e5a719f6a0cad9dcd0c9a7bd41e16c1cd754d226a152e5f68b9a7ccd43d05' },
   commodity: { total: 36, enabled: 33, sha256: 'cc9e0b178dec33dff354a1eea95b5b215302fc7ce685b3d92b82a356df6d6bee' },
   happy: { total: 10, enabled: 10, sha256: '197a73a578d8734d49e844e0a83b89204d5a6fc6b973b1ed698272d846a2c308' },
   energy: { total: 28, enabled: 26, sha256: 'c29563083968049da7c1c7c0b6a856143c3797c010b9c21d2424bbbbb3febbc1' },
@@ -209,7 +209,7 @@ describe('WebMCP live dashboard bindings', () => {
 
   it('pages live panel catalogs with entitlement and enabled-state differences', () => {
     const panelSettings = getInitialPanelSettingsForVariant('full');
-    panelSettings.markets = { ...panelSettings.markets!, enabled: false };
+    panelSettings['domain-health'] = { ...panelSettings['domain-health']!, enabled: false };
     const enabledDefaults = Object.entries(panelSettings)
       .filter(([, config]) => config.enabled === true)
       .map(([panelId]) => panelId);
@@ -218,10 +218,10 @@ describe('WebMCP live dashboard bindings', () => {
       panelSettings,
     });
 
-    const entitled = listWebMcpDashboardPanels(ctx, 'full', { variant: 'full', limit: 8 }, {
+    const entitled = listWebMcpDashboardPanels(ctx, 'full', { variant: 'full', limit: 4 }, {
       isPanelAllowed: () => true,
     });
-    assert.equal(entitled.total, 119);
+    assert.equal(entitled.total, 11);
     assert.equal(entitled.variant, 'full');
     assert.equal(entitled.hasMore, true);
 
@@ -232,27 +232,28 @@ describe('WebMCP live dashboard bindings', () => {
         variant: 'full',
         enabled: false,
         ...(disabledCursor ? { cursor: disabledCursor } : {}),
-        limit: 8,
+        limit: 4,
       }, { isPanelAllowed: () => true });
       disabledPages.push(page);
       disabledCursor = page.nextCursor;
     } while (disabledCursor);
     assert.ok(disabledPages.flatMap((page) => page.panels).some(
-      (panel) => panel.id === 'markets' && panel.unavailableReason === 'panel_disabled',
+      (panel) => panel.id === 'domain-health' && panel.unavailableReason === 'panel_disabled',
     ));
 
     const pages = [entitled];
     let cursor = entitled.nextCursor;
     while (cursor) {
-      const page = listWebMcpDashboardPanels(ctx, 'full', { variant: 'full', cursor, limit: 8 }, {
+      const page = listWebMcpDashboardPanels(ctx, 'full', { variant: 'full', cursor, limit: 4 }, {
         isPanelAllowed: () => true,
       });
       pages.push(page);
       cursor = page.nextCursor;
     }
     const ids = pages.flatMap((page) => page.panels.map((panel) => panel.id));
-    assert.equal(new Set(ids).size, 119);
-    assert.ok(ids.includes('windy-webcams'));
+    assert.equal(new Set(ids).size, 11);
+    assert.ok(ids.includes('threat-timeline'));
+    assert.ok(ids.includes('domain-political'));
 
     const gatedPages = [];
     let gatedCursor: string | null = null;
@@ -260,7 +261,7 @@ describe('WebMCP live dashboard bindings', () => {
       const page = listWebMcpDashboardPanels(ctx, 'full', {
         variant: 'full',
         ...(gatedCursor ? { cursor: gatedCursor } : {}),
-        limit: 8,
+        limit: 4,
       }, { isPanelAllowed: (panelId) => panelId !== 'strategic-risk' });
       gatedPages.push(page);
       gatedCursor = page.nextCursor;

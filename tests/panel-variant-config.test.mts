@@ -6,7 +6,6 @@ import { fileURLToPath } from 'node:url';
 
 import {
   FREE_MAX_PANELS,
-  VARIANT_DEFAULTS,
   countFreePanelCapUsage,
   enforceFreePanelLimit,
   getEffectivePanelConfig,
@@ -44,7 +43,7 @@ describe('variant panel config resolution', () => {
     );
   });
 
-  it('does not inherit full desktop premium metadata for variant-specific supply-chain panels', () => {
+  it('does not put premium metadata on commodity/energy supply-chain panels', () => {
     const panels = src('src/config/panels.ts');
     const definitionFor = (variant: string): string => {
       const match = panels.match(new RegExp(`const ${variant}_PANELS[\\s\\S]*?'supply-chain': \\{([^}]*)\\}`));
@@ -52,7 +51,9 @@ describe('variant panel config resolution', () => {
       return match[1] ?? '';
     };
 
-    assert.match(definitionFor('FULL'), /premium:\s*'enhanced'/);
+    const fullPanelsBody = panels.match(/const FULL_PANELS[\s\S]*?\nconst FULL_MAP_LAYERS/);
+    assert.ok(fullPanelsBody, 'FULL_PANELS block must be present');
+    assert.doesNotMatch(fullPanelsBody[0]!, /'supply-chain'/, 'curated FULL_PANELS must not define supply-chain');
     assert.doesNotMatch(definitionFor('COMMODITY'), /premium:/);
     assert.doesNotMatch(definitionFor('ENERGY'), /premium:/);
     assert.equal(getEffectivePanelConfig('supply-chain', 'commodity').premium, undefined);
@@ -60,11 +61,11 @@ describe('variant panel config resolution', () => {
   });
 
   it('still falls back to the cross-variant registry for panels outside a variant default set', () => {
-    const forecast = getEffectivePanelConfig('forecast', 'happy');
+    const techHubs = getEffectivePanelConfig('tech-hubs', 'happy');
 
-    assert.equal(forecast.name, 'AI Forecasts');
-    // happy has no native forecast entry, so it inherits FULL_PANELS (curated opt-in).
-    assert.equal(forecast.enabled, false);
+    assert.equal(techHubs.name, 'Hot Tech Hubs');
+    // happy has no native tech-hubs entry, so it inherits the tech catalog entry.
+    assert.equal(techHubs.enabled, false);
   });
 
   it('applies variant overrides on top of the variant-specific base config', () => {
@@ -76,12 +77,12 @@ describe('variant panel config resolution', () => {
   });
 
   it('keeps the global map available when free-tier defaults are clamped', () => {
-    // Curated full defaults are intentionally under the free cap, so synthesize
-    // an over-cap layout to exercise clamping behavior.
+    // Curated full defaults are under the free cap, so synthesize an over-cap
+    // layout to exercise clamping behavior.
     const overCapDefaults = Object.fromEntries(
-      VARIANT_DEFAULTS.full.map((key, index) => {
-        const base = { ...getEffectivePanelConfig(key, 'full') };
-        return [key, { ...base, enabled: index < FREE_MAX_PANELS + 5 }];
+      Array.from({ length: FREE_MAX_PANELS + 5 }, (_, index) => {
+        const key = index === 0 ? 'map' : `synth-panel-${index}`;
+        return [key, { name: key, enabled: true, priority: 1 }];
       }),
     );
 
@@ -93,9 +94,9 @@ describe('variant panel config resolution', () => {
 
   it('restores stale over-cap free layouts where the cap disabled the map', () => {
     const overCapDefaults = Object.fromEntries(
-      VARIANT_DEFAULTS.full.map((key, index) => {
-        const base = { ...getEffectivePanelConfig(key, 'full') };
-        return [key, { ...base, enabled: index < FREE_MAX_PANELS + 5 }];
+      Array.from({ length: FREE_MAX_PANELS + 5 }, (_, index) => {
+        const key = index === 0 ? 'map' : `synth-panel-${index}`;
+        return [key, { name: key, enabled: true, priority: 1 }];
       }),
     );
     const stale = enforceFreePanelLimit(overCapDefaults, false);
@@ -115,9 +116,9 @@ describe('variant panel config resolution', () => {
 
   it('does not force-enable a manually hidden map when the free layout is exactly at cap', () => {
     const overCapDefaults = Object.fromEntries(
-      VARIANT_DEFAULTS.full.map((key, index) => {
-        const base = { ...getEffectivePanelConfig(key, 'full') };
-        return [key, { ...base, enabled: index < FREE_MAX_PANELS + 5 }];
+      Array.from({ length: FREE_MAX_PANELS + 5 }, (_, index) => {
+        const key = index === 0 ? 'map' : `synth-panel-${index}`;
+        return [key, { name: key, enabled: true, priority: 1 }];
       }),
     );
     const atCap = enforceFreePanelLimit(overCapDefaults, false);
@@ -132,7 +133,7 @@ describe('variant panel config resolution', () => {
   it('does not force-enable a manually hidden map when the free layout is under cap', () => {
     const underCap = {
       map: { ...getEffectivePanelConfig('map', 'full'), enabled: false },
-      'live-news': getEffectivePanelConfig('live-news', 'full'),
+      'threat-timeline': getEffectivePanelConfig('threat-timeline', 'full'),
     };
 
     const restored = restoreFreeMapPanelAccess(underCap);

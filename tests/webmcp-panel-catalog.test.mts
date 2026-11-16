@@ -72,18 +72,19 @@ function collectPages(
 }
 
 describe('WebMCP dashboard panel catalog', () => {
-  it('lists every canonical panel ID, including disabled World defaults', () => {
+  it('lists every canonical panel ID for the curated World catalog', () => {
     const uniqueIds = getCanonicalDashboardPanelIds();
     const worldIds = getCanonicalDashboardPanelIds('full');
     const disabledWorld = (VARIANT_DEFAULTS.full ?? [])
       .filter((panelId) => getEffectivePanelConfig(panelId, 'full').enabled !== true);
 
     assert.equal(uniqueIds.length, Object.keys(ALL_PANELS).length);
-    assert.equal(worldIds.length, 119);
+    assert.equal(worldIds.length, 11);
     assert.ok(uniqueIds.includes('regionalStartups'));
     assert.ok(uniqueIds.includes('gccNews'));
-    assert.ok(disabledWorld.length > 0, 'World registry must include disabled panels');
-    assert.ok(disabledWorld.every((panelId) => worldIds.includes(panelId)));
+    assert.equal(disabledWorld.length, 0, 'curated World registry enables every native panel');
+    assert.ok(worldIds.includes('threat-timeline'));
+    assert.ok(worldIds.includes('domain-political'));
     assert.deepEqual([...uniqueIds], [...uniqueIds].sort((left, right) => left.localeCompare(right, 'en')));
   });
 
@@ -92,7 +93,7 @@ describe('WebMCP dashboard panel catalog', () => {
     const pages = collectPages(live, { variant: 'full', limit: 4 });
     const ids = pages.flatMap((page) => page.panels.map((panel) => panel.id));
 
-    assert.equal(pages[0]?.total, 119);
+    assert.equal(pages[0]?.total, 11);
     assert.ok(pages.length > 1);
     assert.equal(new Set(ids).size, ids.length);
     assert.deepEqual(ids, [...getCanonicalDashboardPanelIds('full')]);
@@ -126,8 +127,8 @@ describe('WebMCP dashboard panel catalog', () => {
 
   it('filters by category, enabled state, and availability', () => {
     const live = liveState('full', {
-      enabled: ['map', 'markets', 'strategic-risk'],
-      mounted: ['map', 'markets'],
+      enabled: ['map', 'threat-timeline', 'strategic-risk'],
+      mounted: ['map', 'threat-timeline'],
       denied: ['strategic-risk'],
     });
     const core = listDashboardPanelCatalog(live, { variant: 'full', category: 'core', limit: 8 });
@@ -139,11 +140,11 @@ describe('WebMCP dashboard panel catalog', () => {
     assert.ok(core.panels.every((panel) => panel.category === 'core'));
     assert.deepEqual(
       enabled.flatMap((page) => page.panels.map((panel) => panel.id)).sort(),
-      ['map', 'markets', 'strategic-risk'],
+      ['map', 'strategic-risk', 'threat-timeline'],
     );
     assert.deepEqual(
       available.flatMap((page) => page.panels.map((panel) => panel.id)),
-      ['map', 'markets'],
+      ['map', 'threat-timeline'],
     );
     assert.ok(available.flatMap((page) => page.panels).every((panel) => panel.available));
     assert.ok(unavailable.flatMap((page) => page.panels).every((panel) => panel.available === false));
@@ -151,7 +152,7 @@ describe('WebMCP dashboard panel catalog', () => {
 
   it('reports configured, enabled, mounted, entitled, and gated reasons', () => {
     const live = liveState('full', {
-      enabled: ['map', 'markets', 'strategic-risk'],
+      enabled: ['map', 'threat-timeline', 'strategic-risk'],
       mounted: ['map'],
       denied: ['strategic-risk'],
     });
@@ -173,28 +174,28 @@ describe('WebMCP dashboard panel catalog', () => {
       entitled: true,
       available: true,
     });
-    assert.equal(byId.get('markets')?.enabled, true);
-    assert.equal(byId.get('markets')?.mounted, false);
-    assert.equal(byId.get('markets')?.available, false);
-    assert.equal(byId.get('markets')?.unavailableReason, 'panel_not_live');
+    assert.equal(byId.get('threat-timeline')?.enabled, true);
+    assert.equal(byId.get('threat-timeline')?.mounted, false);
+    assert.equal(byId.get('threat-timeline')?.available, false);
+    assert.equal(byId.get('threat-timeline')?.unavailableReason, 'panel_not_live');
     assert.equal(byId.get('strategic-risk')?.entitled, false);
     assert.equal(byId.get('strategic-risk')?.unavailableReason, 'panel_not_entitled');
-    assert.equal(byId.get('windy-webcams')?.enabled, false);
-    assert.equal(byId.get('windy-webcams')?.mounted, false);
-    assert.equal(byId.get('windy-webcams')?.unavailableReason, 'panel_disabled');
+    assert.equal(byId.get('domain-health')?.enabled, false);
+    assert.equal(byId.get('domain-health')?.mounted, false);
+    assert.equal(byId.get('domain-health')?.unavailableReason, 'panel_disabled');
     assert.equal('unavailableReason' in (byId.get('map') ?? {}), false);
   });
 
   it('keeps variant availability and category assignment aligned with settings registries', () => {
     const githubCategory = getDashboardPanelCategoryKey('github', 'tech');
-    const githubOnWorld = getDashboardPanelCategoryKey('github', 'full');
-    const live = liveState('full');
-    const github = collectPages(live)
+    const threatCategory = getDashboardPanelCategoryKey('threat-timeline', 'full');
+    const live = liveState('tech');
+    const github = collectPages(live, { variant: 'tech' })
       .flatMap((page) => page.panels)
       .find((panel) => panel.id === 'github');
 
     assert.equal(githubCategory, 'techAi');
-    assert.equal(githubOnWorld, 'techAi');
+    assert.equal(threatCategory, 'intelligence');
     assert.ok(github);
     assert.deepEqual(github.variants, ['tech']);
     assert.equal(github.category, 'techAi');
@@ -205,9 +206,9 @@ describe('WebMCP dashboard panel catalog', () => {
     const live = liveState('full');
     const techMarketIds = collectPages(live, { variant: 'tech', category: 'techMarkets' })
       .flatMap((page) => page.panels.map((panel) => panel.id));
-    const marketsOnWorld = collectPages(live, { variant: 'full' })
+    const threatOnWorld = collectPages(live, { variant: 'full' })
       .flatMap((page) => page.panels)
-      .find((panel) => panel.id === 'markets');
+      .find((panel) => panel.id === 'threat-timeline');
     const techMarkets = listDashboardPanelCatalog(live, {
       variant: 'tech',
       category: 'techMarkets',
@@ -224,7 +225,7 @@ describe('WebMCP dashboard panel catalog', () => {
         .sort((left, right) => left.localeCompare(right, 'en')),
     );
     assert.ok(techMarkets.panels.every((panel) => panel.category === 'techMarkets'));
-    assert.equal(marketsOnWorld?.category, 'marketsFinance');
+    assert.equal(threatOnWorld?.category, 'intelligence');
     assert.equal(techMarkets.variant, 'full');
   });
 

@@ -27,7 +27,7 @@ describe('getVariantPanelCategories', () => {
   });
 
   it('includes a category once any of its panels is enabled', () => {
-    const result = getVariantPanelCategories(settings({ cii: true, intel: false }), 'full');
+    const result = getVariantPanelCategories(settings({ 'threat-timeline': true, 'strategic-risk': false }), 'full');
     assert.deepEqual(result.map((c) => c.key), ['intelligence']);
     assert.equal(result[0]!.labelKey, PANEL_CATEGORY_MAP['intelligence']!.labelKey);
     assert.deepEqual(result[0]!.panelKeys, PANEL_CATEGORY_MAP['intelligence']!.panelKeys);
@@ -67,7 +67,7 @@ describe('getVariantPanelCategories', () => {
   // The mobile nav and the settings filter both depend on this curation.
   it('variant defaults yield the curated category set, free of duplicate labels', () => {
     const expected: Record<string, string[]> = {
-      full: ['core', 'intelligence', 'correlation', 'regionalNews', 'marketsFinance', 'topical', 'domains', 'dataTracking'],
+      full: ['core', 'intelligence', 'correlation', 'domains'],
       tech: ['core', 'techAi', 'startupsVc', 'securityPolicy', 'techMarkets'],
       finance: ['core', 'finMarkets', 'fixedIncomeFx', 'finCommodities', 'cryptoDigital', 'centralBanksEcon', 'dealsInstitutional', 'gulfMena'],
       commodity: ['core', 'commodityPrices', 'miningIndustry', 'commodityEcon'],
@@ -103,12 +103,11 @@ describe('getProPanelKeys (mobile nav PRO chip)', () => {
   // assertions cover the web gating shape.
   it('includes enabled premium panels, excludes free and disabled ones', () => {
     const result = getProPanelKeys(settings({
-      'stock-analysis': true,   // premium: 'locked' on all surfaces
-      'chat-analyst': true,     // premium: 'locked' on all surfaces
+      'stock-analysis': true,   // premium: 'locked' on finance catalog / ALL_PANELS
       'daily-market-brief': false, // premium but disabled
-      intel: true,              // free panel
+      'threat-timeline': true,  // curated full free panel
     }), 'full');
-    assert.deepEqual(result.sort(), ['chat-analyst', 'stock-analysis']);
+    assert.deepEqual(result.sort(), ['stock-analysis']);
   });
 
   it('drops unknown keys (custom widgets / MCP panels)', () => {
@@ -116,14 +115,13 @@ describe('getProPanelKeys (mobile nav PRO chip)', () => {
     assert.deepEqual(result, []);
   });
 
-  it('full-variant defaults surface a non-empty premium suite', () => {
+  it('curated full-variant defaults have no web-surface premium panels', () => {
     const enabledDefaults = settings(
       Object.fromEntries((VARIANT_DEFAULTS['full'] ?? []).map((k: string) => [k, true])),
     );
     const result = getProPanelKeys(enabledDefaults, 'full');
-    assert.ok(result.includes('stock-analysis'));
-    assert.ok(result.includes('chat-analyst'));
-    assert.ok(result.length >= 5, `expected a meaningful premium suite, got ${result.join(', ')}`);
+    // strategic-risk is premium-enhanced only on desktop; web curated boards are free.
+    assert.deepEqual(result, []);
   });
 });
 

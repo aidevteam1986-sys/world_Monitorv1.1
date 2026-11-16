@@ -22,6 +22,7 @@ import {
   getEffectivePanelConfig,
   getInitialPanelSettingsForVariant,
   isPanelEntitled,
+  isPanelNativeToVariant,
   enforceFreePanelLimit,
   restoreFreeMapPanelAccess,
   restoreProGatedPanels,
@@ -1226,6 +1227,37 @@ export class App {
         }
         if (curatedFixed) saveToStorage(STORAGE_KEYS.panels, panelSettings);
         localStorage.setItem(CURATED_CORE_PANELS_KEY, 'done');
+      }
+
+      // One-time migration: full variant catalog is curated to the checked core
+      // boards only. Disable leftover opt-in / cross-variant panels from older
+      // sessions so they leave the dashboard and settings list.
+      const FULL_CURATED_CATALOG_KEY = 'worldmonitor-full-curated-catalog-v1';
+      if (SITE_VARIANT === 'full' && !localStorage.getItem(FULL_CURATED_CATALOG_KEY)) {
+        let fixed = false;
+        for (const key of Object.keys(panelSettings)) {
+          const config = panelSettings[key];
+          if (
+            !isDynamicPanel(key)
+            && !isPanelNativeToVariant(key, 'full')
+            && config
+            && (config.enabled || config.proGated)
+          ) {
+            userSetPanelEnabled(config, false);
+            fixed = true;
+          }
+        }
+        for (const key of CURATED_FULL_DEFAULT_PANEL_KEYS) {
+          const config = panelSettings[key];
+          if (!config) continue;
+          if (!config.enabled || config.proGated) {
+            panelSettings[key] = { ...config, enabled: true };
+            delete panelSettings[key]!.proGated;
+            fixed = true;
+          }
+        }
+        if (fixed) saveToStorage(STORAGE_KEYS.panels, panelSettings);
+        localStorage.setItem(FULL_CURATED_CATALOG_KEY, 'done');
       }
 
       // One-time migration: fix happy variant sessions that got cross-variant panels enabled

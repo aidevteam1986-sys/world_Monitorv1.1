@@ -78,7 +78,9 @@ function evaluate(overrides: {
   isPro?: boolean;
   isPanelAllowed?: (panelId: string, config: PanelConfig) => boolean;
 }) {
-  const variant = overrides.variant ?? 'full';
+  // Default to tech: curated full no longer ships disabled opt-in boards like
+  // windy-webcams, and non-native enables are denied with panel_incompatible.
+  const variant = overrides.variant ?? 'tech';
   return evaluateSetPanelEnabled({
     panelId: overrides.panelId ?? 'windy-webcams',
     enabled: overrides.enabled ?? true,
@@ -91,11 +93,12 @@ function evaluate(overrides: {
 
 describe('isPanelNativeToVariant', () => {
   it('treats catalog keys as native only to the monitors that define them', () => {
-    assert.equal(isPanelNativeToVariant('markets', 'full'), true);
+    assert.equal(isPanelNativeToVariant('threat-timeline', 'full'), true);
+    assert.equal(isPanelNativeToVariant('markets', 'full'), false);
     assert.equal(isPanelNativeToVariant('markets', 'happy'), false);
     assert.equal(isPanelNativeToVariant('positive-feed', 'happy'), true);
     assert.equal(isPanelNativeToVariant('positive-feed', 'full'), false);
-    assert.equal(isPanelNativeToVariant('giving', 'full'), true);
+    assert.equal(isPanelNativeToVariant('giving', 'full'), false);
     assert.equal(Object.prototype.hasOwnProperty.call(ALL_PANELS, 'positive-feed'), true);
   });
 });
@@ -110,7 +113,7 @@ describe('evaluateSetPanelEnabled', () => {
   });
 
   it('enables a native disabled panel', () => {
-    const panelSettings = settingsWithFreeSlots('full');
+    const panelSettings = settingsWithFreeSlots('tech');
     assert.equal(panelSettings['windy-webcams']?.enabled, false);
     const result = evaluate({ panelSettings, panelId: 'windy-webcams', enabled: true });
     assert.deepEqual(result, {
@@ -125,7 +128,7 @@ describe('evaluateSetPanelEnabled', () => {
   });
 
   it('disables a native enabled panel', () => {
-    const panelSettings = cloneSettings('full');
+    const panelSettings = cloneSettings('tech');
     assert.equal(panelSettings.markets?.enabled, true);
     const result = evaluate({ panelSettings, panelId: 'markets', enabled: false });
     assert.equal(result.ok, true);
@@ -137,7 +140,7 @@ describe('evaluateSetPanelEnabled', () => {
   });
 
   it('treats repeats as success with no change', () => {
-    const panelSettings = cloneSettings('full');
+    const panelSettings = cloneSettings('tech');
     const stillOff = evaluate({
       panelSettings,
       panelId: 'windy-webcams',
@@ -160,7 +163,7 @@ describe('evaluateSetPanelEnabled', () => {
   });
 
   it('no-ops a cross-variant panel that is already in the requested state', () => {
-    const panelSettings = cloneSettings('full');
+    const panelSettings = cloneSettings('tech');
     panelSettings['positive-feed'] = {
       ...panelSettings['positive-feed']!,
       enabled: true,
@@ -176,16 +179,16 @@ describe('evaluateSetPanelEnabled', () => {
   });
 
   it('refuses to enable a panel that is not native to the current monitor', () => {
-    const full = evaluate({
+    const world = evaluate({
       variant: 'full',
       panelId: 'positive-feed',
       enabled: true,
     });
-    assert.equal(full.ok, false);
-    assert.equal(full.status, 'denied');
-    assert.equal(full.reason, 'panel_incompatible');
-    assert.equal(full.changed, false);
-    assert.equal(full.effectiveEnabled, false);
+    assert.equal(world.ok, false);
+    assert.equal(world.status, 'denied');
+    assert.equal(world.reason, 'panel_incompatible');
+    assert.equal(world.changed, false);
+    assert.equal(world.effectiveEnabled, false);
 
     const happy = evaluate({
       variant: 'happy',
@@ -215,12 +218,13 @@ describe('evaluateSetPanelEnabled', () => {
   });
 
   it('refuses unentitled enable but still allows disable of a live panel', () => {
-    const panelSettings = cloneSettings('full');
+    const panelSettings = cloneSettings('finance');
     panelSettings['stock-analysis'] = {
       ...panelSettings['stock-analysis']!,
       enabled: false,
     };
     const deniedEnable = evaluate({
+      variant: 'finance',
       panelSettings,
       panelId: 'stock-analysis',
       enabled: true,
@@ -232,6 +236,7 @@ describe('evaluateSetPanelEnabled', () => {
 
     panelSettings['stock-analysis']!.enabled = true;
     const allowedDisable = evaluate({
+      variant: 'finance',
       panelSettings,
       panelId: 'stock-analysis',
       enabled: false,
@@ -244,7 +249,7 @@ describe('evaluateSetPanelEnabled', () => {
   });
 
   it('refuses a free-tier enable that would exceed the panel cap', () => {
-    const panelSettings = settingsAtFreeCap('full', 'windy-webcams');
+    const panelSettings = settingsAtFreeCap('tech', 'windy-webcams');
     const result = evaluate({
       panelSettings,
       panelId: 'windy-webcams',
@@ -258,7 +263,7 @@ describe('evaluateSetPanelEnabled', () => {
   });
 
   it('does not count the map panel against the free-tier cap', () => {
-    const panelSettings = settingsAtFreeCap('full', 'map');
+    const panelSettings = settingsAtFreeCap('tech', 'map');
     const result = evaluate({
       panelSettings,
       panelId: 'map',
@@ -271,7 +276,7 @@ describe('evaluateSetPanelEnabled', () => {
   });
 
   it('lets a Pro session enable past the free-tier cap', () => {
-    const panelSettings = settingsAtFreeCap('full', 'windy-webcams');
+    const panelSettings = settingsAtFreeCap('tech', 'windy-webcams');
     const result = evaluate({
       panelSettings,
       panelId: 'windy-webcams',
@@ -295,7 +300,7 @@ describe('evaluateSetPanelEnabled', () => {
   });
 
   it('treats a catalog panel missing from settings as currently disabled', () => {
-    const panelSettings = settingsWithFreeSlots('full');
+    const panelSettings = settingsWithFreeSlots('tech');
     delete panelSettings['windy-webcams'];
     const result = evaluate({ panelSettings, panelId: 'windy-webcams', enabled: true });
     assert.equal(result.ok, true);
@@ -304,13 +309,14 @@ describe('evaluateSetPanelEnabled', () => {
   });
 
   it('denies enable when stored premium metadata is stripped but the catalog marks the panel premium', () => {
-    const panelSettings = settingsWithFreeSlots('full');
+    const panelSettings = settingsWithFreeSlots('finance');
     const stored = { ...panelSettings['stock-analysis']!, enabled: false };
     delete stored.premium;
     panelSettings['stock-analysis'] = stored;
     assert.equal(stored.premium, undefined);
 
     const result = evaluate({
+      variant: 'finance',
       panelSettings,
       panelId: 'stock-analysis',
       enabled: true,
@@ -326,12 +332,13 @@ describe('evaluateSetPanelEnabled', () => {
   });
 
   it('passes catalog config to the entitlement callback, not the stored entry', () => {
-    const panelSettings = settingsWithFreeSlots('full');
+    const panelSettings = settingsWithFreeSlots('finance');
     const stored = { ...panelSettings['stock-analysis']!, enabled: false };
     delete stored.premium;
     panelSettings['stock-analysis'] = stored;
     let seenPremium: PanelConfig['premium'] | undefined;
     const result = evaluate({
+      variant: 'finance',
       panelSettings,
       panelId: 'stock-analysis',
       enabled: true,
@@ -350,13 +357,13 @@ describe('evaluateSetPanelEnabled', () => {
 describe('applySetPanelEnabled', () => {
   it('runs beforeApply only after a changed enable persists', () => {
     const events: string[] = [];
-    const panelSettings = settingsWithFreeSlots('full');
+    const panelSettings = settingsWithFreeSlots('tech');
     const result = applySetPanelEnabled(
       { panelSettings },
       'windy-webcams',
       true,
       {
-        variant: 'full',
+        variant: 'tech',
         isPro: false,
         persist: () => { events.push('persist'); },
         trackToggle: () => { events.push('track'); },
@@ -373,7 +380,7 @@ describe('applySetPanelEnabled', () => {
       'windy-webcams',
       true,
       {
-        variant: 'full',
+        variant: 'tech',
         isPro: false,
         persist: () => { events.push('persist'); },
         trackToggle: () => { events.push('track'); },
@@ -387,11 +394,11 @@ describe('applySetPanelEnabled', () => {
   it('does not run beforeApply when persistence fails', () => {
     let beforeApplyCount = 0;
     const result = applySetPanelEnabled(
-      { panelSettings: settingsWithFreeSlots('full') },
+      { panelSettings: settingsWithFreeSlots('tech') },
       'windy-webcams',
       true,
       {
-        variant: 'full',
+        variant: 'tech',
         isPro: false,
         persist: () => false,
         trackToggle: () => {},
@@ -404,7 +411,7 @@ describe('applySetPanelEnabled', () => {
   });
 
   it('persists an enable through the same user-set path and skips persist on no-op', () => {
-    const panelSettings = settingsWithFreeSlots('full');
+    const panelSettings = settingsWithFreeSlots('tech');
     const persistCalls: Record<string, PanelConfig>[] = [];
     let applyCount = 0;
     let toggleCount = 0;
@@ -412,7 +419,7 @@ describe('applySetPanelEnabled', () => {
     let toastCount = 0;
     let refreshCount = 0;
     const deps = {
-      variant: 'full',
+      variant: 'tech',
       isPro: false,
       persist: (settings: Record<string, PanelConfig>) => {
         persistCalls.push(structuredClone(settings));
@@ -468,10 +475,10 @@ describe('applySetPanelEnabled', () => {
   });
 
   it('still returns applied when fetchData throws or rejects after persist', async () => {
-    const panelSettings = settingsWithFreeSlots('full');
+    const panelSettings = settingsWithFreeSlots('tech');
     let persistCount = 0;
     const deps = {
-      variant: 'full',
+      variant: 'tech',
       isPro: false,
       persist: () => {
         persistCount += 1;
@@ -519,14 +526,14 @@ describe('applySetPanelEnabled', () => {
   });
 
   it('persists a disable without deleting the catalog entry', () => {
-    const panelSettings = cloneSettings('full');
+    const panelSettings = cloneSettings('tech');
     const persistCalls: Record<string, PanelConfig>[] = [];
     const result = applySetPanelEnabled(
       { panelSettings },
       'markets',
       false,
       {
-        variant: 'full',
+        variant: 'tech',
         isPro: false,
         persist: (settings) => persistCalls.push(structuredClone(settings)),
         applyPanelSettings: () => {},
@@ -540,7 +547,7 @@ describe('applySetPanelEnabled', () => {
   });
 
   it('fails closed before changing live state when persistence fails', () => {
-    const panelSettings = settingsWithFreeSlots('full');
+    const panelSettings = settingsWithFreeSlots('tech');
     let applyCount = 0;
     let toggleCount = 0;
     const result = applySetPanelEnabled(
@@ -548,7 +555,7 @@ describe('applySetPanelEnabled', () => {
       'windy-webcams',
       true,
       {
-        variant: 'full',
+        variant: 'tech',
         isPro: false,
         persist: () => false,
         applyPanelSettings: () => { applyCount += 1; },
@@ -572,10 +579,10 @@ describe('applySetPanelEnabled', () => {
   });
 
   it('does not persist entitlement, cap, or unknown refusals', () => {
-    const panelSettings = settingsAtFreeCap('full', 'windy-webcams');
+    const panelSettings = settingsAtFreeCap('tech', 'windy-webcams');
     let persistCount = 0;
     const deps = {
-      variant: 'full',
+      variant: 'tech',
       isPro: false,
       persist: () => {
         persistCount += 1;
@@ -604,7 +611,7 @@ describe('applySetPanelEnabled', () => {
     assert.equal(unknown.reason, 'unknown_panel');
     assert.equal(persistCount, 0);
 
-    const unentitledSettings = settingsWithFreeSlots('full');
+    const unentitledSettings = settingsWithFreeSlots('finance');
     unentitledSettings['stock-analysis'] = {
       ...unentitledSettings['stock-analysis']!,
       enabled: false,
@@ -615,6 +622,7 @@ describe('applySetPanelEnabled', () => {
       true,
       {
         ...deps,
+        variant: 'finance',
         isPanelAllowed: () => false,
       },
     );
@@ -622,7 +630,7 @@ describe('applySetPanelEnabled', () => {
     assert.equal(unentitledSettings['stock-analysis']?.enabled, false);
     assert.equal(persistCount, 0);
 
-    const stalePremiumSettings = settingsWithFreeSlots('full');
+    const stalePremiumSettings = settingsWithFreeSlots('finance');
     const staleStored = { ...stalePremiumSettings['stock-analysis']!, enabled: false };
     delete staleStored.premium;
     stalePremiumSettings['stock-analysis'] = staleStored;
@@ -631,7 +639,7 @@ describe('applySetPanelEnabled', () => {
       'stock-analysis',
       true,
       {
-        variant: 'full',
+        variant: 'finance',
         isPro: false,
         persist: () => {
           persistCount += 1;
@@ -646,14 +654,14 @@ describe('applySetPanelEnabled', () => {
   });
 
   it('shows the free-tier cap toast only when the cap blocks an enable', () => {
-    const panelSettings = settingsAtFreeCap('full', 'windy-webcams');
+    const panelSettings = settingsAtFreeCap('tech', 'windy-webcams');
     let toastCount = 0;
     applySetPanelEnabled(
       { panelSettings },
       'windy-webcams',
       true,
       {
-        variant: 'full',
+        variant: 'tech',
         isPro: false,
         persist: () => {},
         applyPanelSettings: () => {},
@@ -675,7 +683,7 @@ describe('set_panel_enabled WebMCP adapter', () => {
       resolveCountryName: (code: string) => `Country ${code}`,
       openSearch: async () => true,
       getDashboardContext: async () => ({
-        variant: 'full',
+        variant: 'tech',
         map: {
           view: 'global',
           center: { lat: 0, lon: 0 },
@@ -745,7 +753,7 @@ describe('set_panel_enabled WebMCP adapter', () => {
       resolveCountryName: (code: string) => `Country ${code}`,
       openSearch: async () => true,
       getDashboardContext: async () => ({
-        variant: 'full',
+        variant: 'tech',
         map: {
           view: 'global',
           center: { lat: 0, lon: 0 },

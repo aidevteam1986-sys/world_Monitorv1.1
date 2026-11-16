@@ -8,6 +8,7 @@ import {
   getEffectivePanelConfig,
   getVariantPanelCategories,
   isPanelEntitled,
+  isPanelNativeToVariant,
   FREE_MAX_PANELS,
   countFreePanelCapUsage,
   isFreePanelCapCounted,
@@ -1512,7 +1513,11 @@ export class UnifiedSettings {
     const panelSettings = this.draftPanelSettings;
     let entries = Object.entries(panelSettings)
       .filter(([key]) => key !== 'runtime-config' || this.config.isDesktopApp)
-      .filter(([key]) => !key.startsWith('cw-'));
+      .filter(([key]) => !key.startsWith('cw-'))
+      // Settings lists only this monitor's native catalog (plus dynamic MCP
+      // panels). Cross-variant ALL_PANELS leftovers stay hidden — they cannot
+      // be enabled here anyway (`panel_incompatible`).
+      .filter(([key]) => key.startsWith('mcp-') || isPanelNativeToVariant(key, SITE_VARIANT));
 
     if (this.activePanelCategory !== 'all') {
       const catDef = PANEL_CATEGORY_MAP[this.activePanelCategory];
