@@ -3009,6 +3009,7 @@ export class GlobeMap {
 
   private static readonly VIEW_POVS: Record<MapView, { lat: number; lng: number; altitude: number }> = {
     global:   { lat: 20,  lng:  0,   altitude: 1.8 },
+    india:    { lat: 22,  lng: 79,   altitude: 1.05 },
     america:  { lat: 20,  lng: -90,  altitude: 1.5 },
     mena:     { lat: 25,  lng:  40,  altitude: 1.2 },
     eu:       { lat: 50,  lng:  10,  altitude: 1.2 },

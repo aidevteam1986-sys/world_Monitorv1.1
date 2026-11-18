@@ -17,6 +17,7 @@ import { TIER1_COUNTRIES } from '@/services/country-instability';
 import { throwIfWebMcpAborted } from '@/services/webmcp';
 import { CURATED_COUNTRIES } from '@/config/countries';
 import { getCountryMapFocus } from '@/app/country-map-focus';
+import { selectionFromMapView, syncRegionMenuSelection } from '@/app/region-menu';
 import { INTEL_HOTSPOTS, CONFLICT_ZONES } from '@/config/geo';
 import type { NewsItem, MapLayers, MilitaryBase } from '@/types';
 import { UNDERSEA_CABLES, NUCLEAR_FACILITIES } from '@/config/geo-map';
@@ -491,8 +492,7 @@ export class SearchSelectionDispatcher {
     switch (category) {
       case 'nav': {
         ctx.map?.setView(action as MapView);
-        const select = document.getElementById('regionSelect') as HTMLSelectElement;
-        if (select) select.value = action;
+        syncRegionMenuSelection(selectionFromMapView(action));
         break;
       }
       case 'layers': {

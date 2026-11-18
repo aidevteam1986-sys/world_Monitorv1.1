@@ -223,7 +223,7 @@ import {
 type GlyphAccessor<T> = (d: unknown, info: unknown) => T;
 
 export type TimeRange = '1h' | '6h' | '24h' | '48h' | '7d' | 'all';
-export type DeckMapView = 'global' | 'america' | 'mena' | 'eu' | 'asia' | 'latam' | 'africa' | 'oceania';
+export type DeckMapView = 'global' | 'india' | 'america' | 'mena' | 'eu' | 'asia' | 'latam' | 'africa' | 'oceania';
 type MapInteractionMode = 'flat' | '3d';
 
 export interface CountryClickPayload {
@@ -272,6 +272,7 @@ interface TechEventMarker {
 // View presets with longitude, latitude, zoom
 const VIEW_PRESETS: Record<DeckMapView, { longitude: number; latitude: number; zoom: number }> = {
   global: { longitude: 0, latitude: 20, zoom: 1.5 },
+  india: { longitude: 79, latitude: 22, zoom: 4.2 },
   america: { longitude: -95, latitude: 38, zoom: 3 },
   mena: { longitude: 45, latitude: 28, zoom: 3.5 },
   eu: { longitude: 15, latitude: 50, zoom: 3.5 },
@@ -1011,7 +1012,7 @@ export class DeckGLMap {
 
     if (this.chrome) {
       this.createControls();
-      this.createTimeSlider();
+      // Time range lives in #headerTimeRangeMount (right of Indicators).
       this.createLayerToggles();
       this.createLegend();
     }
@@ -6098,13 +6099,7 @@ export class DeckGLMap {
       <div class="view-selector">
         <select class="view-select" aria-label="${t('header.selectRegion')}">
           <option value="global">${t('components.deckgl.views.global')}</option>
-          <option value="america">${t('components.deckgl.views.americas')}</option>
-          <option value="mena">${t('components.deckgl.views.mena')}</option>
-          <option value="eu">${t('components.deckgl.views.europe')}</option>
-          <option value="asia">${t('components.deckgl.views.asia')}</option>
-          <option value="latam">${t('components.deckgl.views.latam')}</option>
-          <option value="africa">${t('components.deckgl.views.africa')}</option>
-          <option value="oceania">${t('components.deckgl.views.oceania')}</option>
+          <option value="india">${t('components.deckgl.views.india')}</option>
         </select>
       </div>
     `, "legacy direct innerHTML migration"));
@@ -6134,32 +6129,10 @@ export class DeckGLMap {
     controls.appendChild(this.clearTrailsBtn);
   }
 
-  private createTimeSlider(): void {
-    const slider = document.createElement('div');
-    slider.className = 'time-slider deckgl-time-slider';
-    setTrustedHtml(slider, trustedHtml(`
-      <div class="time-options">
-        <button class="time-btn ${this.state.timeRange === '1h' ? 'active' : ''}" data-range="1h">1h</button>
-        <button class="time-btn ${this.state.timeRange === '6h' ? 'active' : ''}" data-range="6h">6h</button>
-        <button class="time-btn ${this.state.timeRange === '24h' ? 'active' : ''}" data-range="24h">24h</button>
-        <button class="time-btn ${this.state.timeRange === '48h' ? 'active' : ''}" data-range="48h">48h</button>
-        <button class="time-btn ${this.state.timeRange === '7d' ? 'active' : ''}" data-range="7d">7d</button>
-        <button class="time-btn ${this.state.timeRange === 'all' ? 'active' : ''}" data-range="all">${t('components.deckgl.timeAll')}</button>
-      </div>
-    `, "legacy direct innerHTML migration"));
-
-    this.container.appendChild(slider);
-
-    slider.querySelectorAll('.time-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const range = (btn as HTMLElement).dataset.range as TimeRange;
-        this.setTimeRange(range);
-      });
-    });
-  }
-
   private updateTimeSliderButtons(): void {
-    const slider = this.container.querySelector('.deckgl-time-slider');
+    const slider =
+      document.getElementById('headerTimeRangeMount') ??
+      this.container.querySelector('.deckgl-time-slider');
     if (!slider) return;
     slider.querySelectorAll('.time-btn').forEach((btn) => {
       const range = (btn as HTMLElement).dataset.range as TimeRange | undefined;

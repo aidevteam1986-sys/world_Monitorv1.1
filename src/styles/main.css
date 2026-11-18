@@ -492,6 +492,60 @@ canvas,
   align-items: center;
 }
 
+.header-time-range-mount {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+}
+
+.header-time-range {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  background: var(--overlay-subtle, transparent);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.header-time-range .time-options {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 2px;
+}
+
+.header-time-range .time-btn {
+  padding: 0 7px;
+  height: 24px;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: calc(10px * var(--wm-panel-effective-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.header-time-range .time-btn:hover {
+  border-color: var(--green);
+  color: var(--green-text, var(--green));
+}
+
+.header-time-range .time-btn.active {
+  background: var(--green);
+  border-color: var(--green);
+  color: #0a0a0a;
+  font-weight: 700;
+}
+
 .mission-preset-button {
   display: inline-flex;
   align-items: center;
@@ -1031,10 +1085,101 @@ canvas,
 
 /* Region Selector in Header */
 .region-selector {
+  position: relative;
   display: flex;
   align-items: center;
 }
 
+.region-menu-trigger {
+  padding: 4px 24px 4px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: inherit;
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23888' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+
+.region-menu-trigger:hover,
+.region-selector.open .region-menu-trigger {
+  border-color: var(--green);
+}
+
+.region-menu-trigger:focus {
+  outline: none;
+  border-color: var(--green);
+}
+
+.region-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 1200;
+  min-width: 180px;
+  padding: 4px 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.region-menu-item,
+.region-submenu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.region-menu-item:hover,
+.region-menu-item.active,
+.region-submenu-item:hover,
+.region-submenu-item.active {
+  background: var(--green);
+  color: #fff;
+}
+
+.region-menu-flyout {
+  position: relative;
+}
+
+.region-menu-caret {
+  margin-left: 12px;
+  opacity: 0.7;
+}
+
+.region-submenu {
+  position: absolute;
+  top: 0;
+  left: calc(100% - 4px);
+  z-index: 1201;
+  display: none;
+  max-height: min(70vh, 420px);
+  min-width: 220px;
+  overflow: auto;
+  padding: 4px 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.region-menu-flyout:hover > .region-submenu,
+.region-menu-flyout:focus-within > .region-submenu {
+  display: block;
+}
+
+/* Legacy class still used by Regional Intelligence panel. */
 .region-select {
   padding: 4px 24px 4px 10px;
   background: var(--bg);
@@ -15781,6 +15926,19 @@ button.popup-link {
   background: var(--border);
 }
 
+.region-sheet-subgroup-label {
+  padding: 12px 20px 4px;
+  color: var(--text-muted, #888);
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.region-sheet-option--nested {
+  padding-left: 32px;
+}
+
 .region-sheet-option {
   display: flex;
   align-items: center;
@@ -16110,6 +16268,25 @@ button.popup-link {
   .map-controls {
     top: calc(env(safe-area-inset-top, 0px) + 8px);
     right: calc(env(safe-area-inset-right, 0px) + 8px);
+  }
+
+  .header-time-range-mount {
+    max-width: min(100vw - 96px, 320px);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .header-time-range-mount::-webkit-scrollbar {
+    display: none;
+  }
+
+  .header-time-range .time-btn {
+    /* Issue #3112 / #4373: 48x48 touch targets on mobile. */
+    min-width: 48px;
+    min-height: 48px;
+    height: 48px;
+    padding: 0 10px;
   }
 
   .time-slider {
@@ -20011,7 +20188,7 @@ button.popup-link {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 7px 36px 7px 16px;
+  padding: 7px 16px;
   /* The tint is translucent; the themed surface under it keeps the text
      readable in the light theme, where the page body stays dark. */
   background: linear-gradient(90deg, rgba(74, 222, 128, 0.06), rgba(74, 222, 128, 0.12), rgba(74, 222, 128, 0.06)), var(--surface);
@@ -20028,7 +20205,7 @@ button.popup-link {
 .pro-banner.pro-banner--threat {
   background: #ffffff;
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-  padding: 10px 40px 10px 16px;
+  padding: 10px 16px;
 }
 
 [data-theme="dark"] .pro-banner.pro-banner--threat {
@@ -20179,33 +20356,16 @@ button.popup-link {
   transform: translateY(-1px);
 }
 
-.pro-banner-close {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: var(--text-dim);
-  cursor: pointer;
-  font-size: calc(16px * var(--wm-panel-effective-scale, 1));
-  line-height: 1;
-  padding: 4px;
-}
-
-.pro-banner-close:hover {
-  color: var(--text);
-}
 
 @media (max-width: 768px) {
   .pro-banner {
     font-size: calc(11px * var(--wm-panel-effective-scale, 1));
     gap: 8px;
-    padding: 5px 32px 5px 10px;
+    padding: 5px 10px;
   }
 
   .pro-banner.pro-banner--threat {
-    padding: 8px 32px 8px 10px;
+    padding: 8px 10px;
     background: #ffffff;
   }
 
@@ -21637,6 +21797,117 @@ button.popup-link {
 
 .unified-settings-tab-panel.active {
   display: block;
+}
+
+.library-settings {
+  display: grid;
+  gap: 12px;
+  padding: 4px 0 12px;
+}
+
+.library-settings-intro {
+  display: grid;
+  gap: 6px;
+  align-items: start;
+}
+
+.library-settings-intro h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: calc(15px * var(--wm-panel-effective-scale, 1));
+}
+
+.library-settings-intro p {
+  margin: 0;
+  max-width: 70ch;
+  color: var(--text-dim);
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+  line-height: 1.5;
+}
+
+.library-settings-intro .library-refresh-btn {
+  justify-self: start;
+}
+
+.library-loading,
+.library-empty,
+.library-error {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+}
+
+.library-error {
+  color: var(--semantic-critical-text, var(--semantic-critical));
+  border-color: color-mix(in srgb, var(--semantic-critical) 35%, var(--border));
+}
+
+.library-domain-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.library-domain-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--overlay-subtle, transparent);
+  padding: 10px 12px;
+}
+
+.library-domain-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.library-domain-header h3 {
+  margin: 0;
+  font-size: calc(13px * var(--wm-panel-effective-scale, 1));
+  text-transform: capitalize;
+  color: var(--text);
+}
+
+.library-domain-meta {
+  color: var(--text-dim);
+  font-size: calc(10px * var(--wm-panel-effective-scale, 1));
+}
+
+.library-categories {
+  display: grid;
+  gap: 8px;
+}
+
+.library-category-name {
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
+  font-weight: 600;
+  color: var(--text);
+}
+
+.library-category-empty {
+  color: var(--text-dim);
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
+}
+
+.library-subjects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.library-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-dim);
+  font-size: calc(10px * var(--wm-panel-effective-scale, 1));
 }
 
 .billing-settings-intro {

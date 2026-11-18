@@ -37,6 +37,7 @@ html.wm-pro-banner-reserved .pro-banner-slot {
 }
 
 #missionPresetMount,
+#headerTimeRangeMount,
 #unifiedSettingsMount,
 #authWidgetMount {
   display: inline-flex;
@@ -46,12 +47,17 @@ html.wm-pro-banner-reserved .pro-banner-slot {
 }
 
 #missionPresetMount,
+#headerTimeRangeMount,
 #unifiedSettingsMount {
   contain: layout;
 }
 
 #missionPresetMount {
   min-width: 86px;
+  min-height: 24px;
+}
+
+#headerTimeRangeMount {
   min-height: 24px;
 }
 

@@ -92,18 +92,6 @@ function isDismissed(): boolean {
   }
 }
 
-function dismiss(): void {
-  if (!bannerEl) return;
-  dismissedThisSession = true;
-  bannerEl.classList.add('pro-banner-out');
-  scheduleBannerRemoval();
-  try {
-    localStorage.setItem(DISMISS_KEY, String(Date.now()));
-  } catch {
-    // The in-memory dismissal still applies for the current page.
-  }
-}
-
 /**
  * Optimistic pre-paint premium signal shared with index.html.
  * UX-only — never an authz source of truth. Written only for account-backed
@@ -274,7 +262,6 @@ export function showProBanner(container: HTMLElement): void {
   const banner = document.createElement('div');
   banner.className = returning ? 'pro-banner' : 'pro-banner pro-banner--threat';
   banner.dataset.billingState = returning ? 'lapsed' : 'upgrade';
-  const dismissLabel = t('components.proBanner.dismiss');
   setTrustedHtml(banner, trustedHtml(returning
     ? `
     <span class="pro-banner-badge">${t('components.billingState.resubscribe')}</span>
@@ -282,7 +269,6 @@ export function showProBanner(container: HTMLElement): void {
       <strong>${t('components.billingState.lapsedDesc')}</strong>
     </span>
     <a class="pro-banner-cta" href="${ctaHref}">${t('components.billingState.resubscribe')}</a>
-    <button class="pro-banner-close" aria-label="${dismissLabel}">×</button>
   `
     : `
     <a class="pro-banner-brand" href="/" aria-label="Strat Threat Int">
@@ -293,7 +279,6 @@ export function showProBanner(container: HTMLElement): void {
       </span>
     </a>
     <a class="pro-banner-threat" href="${ctaHref}">${t('components.proBanner.headline')}</a>
-    <button class="pro-banner-close" aria-label="${dismissLabel}">×</button>
   `, "legacy direct innerHTML migration"));
 
   // Tracked in-app rather than via data-umami-event: the Umami tracker holds a
@@ -301,11 +286,6 @@ export function showProBanner(container: HTMLElement): void {
   // before it loads.
   banner.querySelector(returning ? '.pro-banner-cta' : '.pro-banner-threat')!.addEventListener('click', () => {
     trackProBannerClick(returning ? 'lapsed' : 'upgrade');
-  });
-
-  banner.querySelector('.pro-banner-close')!.addEventListener('click', (e) => {
-    e.preventDefault();
-    dismiss();
   });
 
   const slot = container.querySelector<HTMLElement>('#proBannerSlot');

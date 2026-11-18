@@ -1,11 +1,11 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 
-// Free-user strip shows a single "Strategic Threat Intelligence Platform" label. On phones that
+// Free-user strip shows a single "Strategic Warning Intelligence Platform" label. On phones that
 // label must stay readable in full inside the 40px slot the pre-paint script
 // reserves (a taller strip would shift the dashboard).
 
-const HEADLINE = 'Strategic Threat Intelligence Platform';
+const HEADLINE = 'Strategic Warning Intelligence Platform';
 const SLOT_HEIGHT = 40;
 
 async function openFreeDashboard(page: Page, path = '/'): Promise<void> {
@@ -37,7 +37,7 @@ for (const width of [360, 390]) {
   test.describe(`Pro strip at ${width}px`, () => {
     test.use({ viewport: { width, height: 800 }, isMobile: true, hasTouch: true });
 
-    test('names Strategic Threat Intelligence Platform in full, inside the reserved slot', async ({ page }) => {
+    test('names Strategic Warning Intelligence Platform in full, inside the reserved slot', async ({ page }) => {
       await openFreeDashboard(page);
       const layout = await bannerLayout(page);
       expect(layout.headline).toBe(HEADLINE);
@@ -75,7 +75,7 @@ test.describe('Pro strip at 360px in every language', () => {
 test.describe('Pro strip on desktop', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('shows the Strategic Threat Intelligence Platform label', async ({ page }) => {
+  test('shows the Strategic Warning Intelligence Platform label', async ({ page }) => {
     await openFreeDashboard(page);
     const layout = await bannerLayout(page);
     expect(layout.headline).toBe(HEADLINE);

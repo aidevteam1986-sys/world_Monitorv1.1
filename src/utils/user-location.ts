@@ -1,6 +1,6 @@
 import { isDesktopRuntime, toApiUrl } from '@/services/runtime';
 
-export type MapView = 'global' | 'america' | 'mena' | 'eu' | 'asia' | 'latam' | 'africa' | 'oceania';
+export type MapView = 'global' | 'india' | 'america' | 'mena' | 'eu' | 'asia' | 'latam' | 'africa' | 'oceania';
 
 // Region names follow the countries in shared/iso2-to-region.json, with the map
 // views' own choices kept: Mexico, the US and Canada are 'america'; the

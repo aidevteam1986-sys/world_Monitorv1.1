@@ -58,6 +58,7 @@ import {
   type BillingStatusTone,
 } from '@/services/billing-state';
 import { createApiKey, listApiKeys, revokeApiKey, type ApiKeyInfo } from '@/services/api-keys';
+import type { NexusTaxonomyDomain } from '@/services/nexus-ingest';
 import {
   getSelfHostKeySnapshot,
   removeSelfHostKey,
@@ -77,7 +78,7 @@ import {
   type ApiPlanLimitNotice,
 } from '@/services/api-plan-limit-notices';
 import { setTrustedHtml, trustedHtml } from '@/utils/dom-utils';
-import { checkoutConsentHtml, legalLinksHtml, LEGAL_LINK_ATTR } from '@/utils/legal-links';
+import { checkoutConsentHtml, LEGAL_LINK_ATTR } from '@/utils/legal-links';
 import { createFocusTrap, type FocusTrap } from '@/utils/focus-trap';
 import {
   overlayHistory,
@@ -203,6 +204,11 @@ export class UnifiedSettings {
   private apiKeysLoading = false;
   private apiKeysError = '';
   private newlyCreatedKey: string | null = null;
+  // ---- Library tab (nexus_ingest taxonomy for upload classification) ----
+  private libraryItems: NexusTaxonomyDomain[] = [];
+  private libraryLoading = false;
+  private libraryError = '';
+  private libraryLoaded = false;
   // ---- Embeds tab (partner-embed `wme_` keys) ----
   private embedKeys: EmbedKeyInfo[] = [];
   private embedKeysLoading = false;
@@ -952,10 +958,6 @@ export class UnifiedSettings {
       onSettingSaved: () => showToast(t('modals.settingsWindow.saved')),
       isSignedIn,
     });
-    const showNotificationsTab = !this.config.isDesktopApp;
-    const notifs = showNotificationsTab
-      ? renderNotificationsSettings({ isSignedIn })
-      : null;
     // Gated on `embedAccess`, NOT `apiAccess`: both Pro tiers are
     // `apiAccess: false`, so an
     // apiAccess gate would hide embed keys from most of the customers who
@@ -967,10 +969,8 @@ export class UnifiedSettings {
       ...(isSignedIn ? ['billing' as const] : []),
       'panels',
       'sources',
-      ...(showNotificationsTab ? ['notifications' as const] : []),
-      'api-keys',
+      'library',
       ...(showEmbedsTab ? ['embeds' as const] : []),
-      'mcp-clients',
     ];
     this.activeTab = normalizeSettingsTab(this.activeTab, availableTabs);
     const tabClass = (id: TabId) => `unified-settings-tab${this.activeTab === id ? ' active' : ''}`;
@@ -990,10 +990,8 @@ export class UnifiedSettings {
           ${isSignedIn ? `<button class="${tabClass('billing')}" tabindex="${this.activeTab === 'billing' ? 0 : -1}" data-tab="billing" role="tab" aria-selected="${this.activeTab === 'billing'}" id="us-tab-billing" aria-controls="us-tab-panel-billing">Plan &amp; billing</button>` : ''}
           <button class="${tabClass('panels')}" tabindex="${this.activeTab === 'panels' ? 0 : -1}" data-tab="panels" role="tab" aria-selected="${this.activeTab === 'panels'}" id="us-tab-panels" aria-controls="us-tab-panel-panels">${t('header.tabPanels')}</button>
           <button class="${tabClass('sources')}" tabindex="${this.activeTab === 'sources' ? 0 : -1}" data-tab="sources" role="tab" aria-selected="${this.activeTab === 'sources'}" id="us-tab-sources" aria-controls="us-tab-panel-sources">${t('header.tabSources')}</button>
-          ${showNotificationsTab ? `<button class="${tabClass('notifications')}" tabindex="${this.activeTab === 'notifications' ? 0 : -1}" data-tab="notifications" role="tab" aria-selected="${this.activeTab === 'notifications'}" id="us-tab-notifications" aria-controls="us-tab-panel-notifications">${t('header.tabNotifications')}</button>` : ''}
-          <button class="${tabClass('api-keys')}" tabindex="${this.activeTab === 'api-keys' ? 0 : -1}" data-tab="api-keys" role="tab" aria-selected="${this.activeTab === 'api-keys'}" id="us-tab-api-keys" aria-controls="us-tab-panel-api-keys">API Keys <span class="panel-pro-badge">PRO</span></button>
+          <button class="${tabClass('library')}" tabindex="${this.activeTab === 'library' ? 0 : -1}" data-tab="library" role="tab" aria-selected="${this.activeTab === 'library'}" id="us-tab-library" aria-controls="us-tab-panel-library">Library</button>
           ${showEmbedsTab ? `<button class="${tabClass('embeds')}" tabindex="${this.activeTab === 'embeds' ? 0 : -1}" data-tab="embeds" role="tab" aria-selected="${this.activeTab === 'embeds'}" id="us-tab-embeds" aria-controls="us-tab-panel-embeds">Embeds <span class="panel-pro-badge">PRO</span></button>` : ''}
-          <button class="${tabClass('mcp-clients')}" tabindex="${this.activeTab === 'mcp-clients' ? 0 : -1}" data-tab="mcp-clients" role="tab" aria-selected="${this.activeTab === 'mcp-clients'}" id="us-tab-mcp-clients" aria-controls="us-tab-panel-mcp-clients">AI Agents</button>
         </div>
         <div class="unified-settings-tab-panel${this.activeTab === 'settings' ? ' active' : ''}" data-panel-id="settings" id="us-tab-panel-settings" role="tabpanel" aria-labelledby="us-tab-settings">
           <div data-selfhost-key-host>${selfHostKeyHtml}</div>
@@ -1046,23 +1044,14 @@ export class UnifiedSettings {
             <button class="sources-select-none">${t('common.selectNone')}</button>
           </div>
         </div>
-        ${notifs ? `
-        <div class="unified-settings-tab-panel${this.activeTab === 'notifications' ? ' active' : ''}" data-panel-id="notifications" id="us-tab-panel-notifications" role="tabpanel" aria-labelledby="us-tab-notifications">
-          ${notifs.html}
-        </div>
-        ` : ''}
-        <div class="unified-settings-tab-panel${this.activeTab === 'api-keys' ? ' active' : ''}" data-panel-id="api-keys" id="us-tab-panel-api-keys" role="tabpanel" aria-labelledby="us-tab-api-keys">
-          ${this.renderApiKeysContent()}
+        <div class="unified-settings-tab-panel${this.activeTab === 'library' ? ' active' : ''}" data-panel-id="library" id="us-tab-panel-library" role="tabpanel" aria-labelledby="us-tab-library">
+          ${this.renderLibraryContent()}
         </div>
         ${showEmbedsTab ? `
         <div class="unified-settings-tab-panel${this.activeTab === 'embeds' ? ' active' : ''}" data-panel-id="embeds" id="us-tab-panel-embeds" role="tabpanel" aria-labelledby="us-tab-embeds">
           ${this.renderEmbedKeysContent()}
         </div>
         ` : ''}
-        <div class="unified-settings-tab-panel${this.activeTab === 'mcp-clients' ? ' active' : ''}" data-panel-id="mcp-clients" id="us-tab-panel-mcp-clients" role="tabpanel" aria-labelledby="us-tab-mcp-clients">
-          ${this.renderMcpClientsContent()}
-        </div>
-        ${legalLinksHtml(WEB_APP_ORIGIN)}
       </div>
     `, "legacy direct innerHTML migration"));
 
@@ -1071,11 +1060,8 @@ export class UnifiedSettings {
       this.prefsCleanup = prefs.attach(settingsPanel as HTMLElement);
     }
 
-    // Defer notifications attach until the tab is first activated —
-    // otherwise Pro users pay a getChannelsData() fetch on every modal
-    // open even if they never visit this tab.
-    this.pendingNotifs = notifs;
-    if (this.activeTab === 'notifications') this.attachNotificationsTab();
+    this.pendingNotifs = null;
+    if (this.activeTab === 'library') void this.loadLibraryTaxonomy();
 
     const closeBtn = this.overlay.querySelector<HTMLButtonElement>('.unified-settings-close');
     if (closeBtn) {
@@ -1097,19 +1083,12 @@ export class UnifiedSettings {
     this.attachApiKeysHandlers();
     this.attachEmbedKeysHandlers();
     if (loadAccountData) {
-      if (this.activeTab === 'api-keys' || (this.activeTab === 'mcp-clients' && this.canManageMcpClients())) {
-        void this.loadPlanLimitNotices();
-      }
-      if (this.activeTab === 'api-keys' && this.canManageKeys()) {
-        void this.loadApiKeys();
-      }
       if (this.activeTab === 'embeds' && getAuthState().user && hasEmbedAccessForAccount(getAuthState().user?.role)) {
         void this.loadEmbedKeys();
       }
-      if (this.activeTab === 'mcp-clients' && getAuthState().user && hasFeature('mcpAccess')) {
-        void this.loadMcpClients();
-        this.startMcpQuotaPolling();
-      }
+    }
+    if (this.activeTab === 'library') {
+      void this.loadLibraryTaxonomy();
     }
   }
 
@@ -1144,29 +1123,15 @@ export class UnifiedSettings {
       tab,
     );
 
-    if (tab === 'api-keys' && getAuthState().user && hasFeature('apiAccess')) {
-      void this.loadPlanLimitNotices();
-    }
-    if (tab === 'api-keys' && this.canManageKeys()) {
-      void this.loadApiKeys();
-    }
-
     if (tab === 'embeds' && getAuthState().user && hasEmbedAccessForAccount(getAuthState().user?.role)) {
       void this.loadEmbedKeys();
     }
 
-    if (tab === 'mcp-clients' && getAuthState().user && hasFeature('mcpAccess')) {
-      void this.loadPlanLimitNotices();
-      void this.loadMcpClients();
-      this.startMcpQuotaPolling();
-    } else {
-      // Stop polling when switching away — no need to keep the timer running
-      // for a hidden tab.
-      this.stopMcpQuotaPolling();
-    }
+    // Stop MCP quota polling if it was left running from an older session.
+    this.stopMcpQuotaPolling();
 
-    if (tab === 'notifications') {
-      this.attachNotificationsTab();
+    if (tab === 'library') {
+      void this.loadLibraryTaxonomy();
     }
   }
 
@@ -1176,6 +1141,112 @@ export class UnifiedSettings {
     if (notifPanel) {
       this.notifCleanup = this.pendingNotifs.attach(notifPanel as HTMLElement);
     }
+  }
+
+  private renderLibraryContent(): string {
+    if (this.libraryLoading && !this.libraryLoaded) {
+      return `<div class="library-settings">
+        <div class="library-settings-intro">
+          <h2>Library</h2>
+          <p>Taxonomy used to classify newly uploaded documents into domain panels.</p>
+        </div>
+        <div class="library-loading">Loading taxonomy…</div>
+      </div>`;
+    }
+    if (this.libraryError) {
+      return `<div class="library-settings">
+        <div class="library-settings-intro">
+          <h2>Library</h2>
+          <p>Taxonomy used to classify newly uploaded documents into domain panels.</p>
+        </div>
+        <div class="library-error" role="alert">${escapeHtml(this.libraryError)}</div>
+        <button type="button" class="btn btn-secondary library-refresh-btn">Retry</button>
+      </div>`;
+    }
+    if (!this.libraryItems.length) {
+      return `<div class="library-settings">
+        <div class="library-settings-intro">
+          <h2>Library</h2>
+          <p>Taxonomy used to classify newly uploaded documents into domain panels.</p>
+        </div>
+        <div class="library-empty">No taxonomy domains yet. Start nexus_ingest and run <code>scripts/seed_taxonomy.py</code>.</div>
+        <button type="button" class="btn btn-secondary library-refresh-btn">Refresh</button>
+      </div>`;
+    }
+
+    const domainsHtml = this.libraryItems
+      .slice()
+      .sort((a, b) => a.domain.localeCompare(b.domain))
+      .map((item) => {
+        const categories = item.categories ?? [];
+        const catsHtml = categories.length
+          ? categories
+              .map((cat) => {
+                const subjects = (cat.subjects ?? []).map((s) => s.name).filter(Boolean);
+                const subjectLine = subjects.length
+                  ? `<div class="library-subjects">${subjects.map((s) => `<span class="library-chip">${escapeHtml(s)}</span>`).join('')}</div>`
+                  : '';
+                return `<div class="library-category">
+                  <div class="library-category-name">${escapeHtml(cat.name)}</div>
+                  ${subjectLine}
+                </div>`;
+              })
+              .join('')
+          : `<div class="library-category library-category-empty">No categories</div>`;
+        return `<article class="library-domain-card">
+          <header class="library-domain-header">
+            <h3>${escapeHtml(item.domain)}</h3>
+            <span class="library-domain-meta">${categories.length} categor${categories.length === 1 ? 'y' : 'ies'}</span>
+          </header>
+          <div class="library-categories">${catsHtml}</div>
+        </article>`;
+      })
+      .join('');
+
+    return `<div class="library-settings">
+      <div class="library-settings-intro">
+        <h2>Library</h2>
+        <p>Qwen auto-tags uploads against this taxonomy (domain → category → subject). Matching domains drive Political, Diplomatic, and the other domain panels.</p>
+        <button type="button" class="btn btn-secondary library-refresh-btn">Refresh</button>
+      </div>
+      <div class="library-domain-grid">${domainsHtml}</div>
+    </div>`;
+  }
+
+  private async loadLibraryTaxonomy(force = false): Promise<void> {
+    if (this.libraryLoading) return;
+    if (this.libraryLoaded && !force && !this.libraryError) {
+      this.refreshLibraryPanel();
+      return;
+    }
+    this.libraryLoading = true;
+    this.libraryError = '';
+    this.refreshLibraryPanel();
+    try {
+      const { fetchTaxonomyLibrary } = await import('@/services/nexus-ingest');
+      this.libraryItems = await fetchTaxonomyLibrary();
+      this.libraryLoaded = true;
+    } catch (err) {
+      this.libraryError = err instanceof Error ? err.message : 'Failed to load taxonomy';
+      this.libraryItems = [];
+    } finally {
+      this.libraryLoading = false;
+      this.refreshLibraryPanel();
+    }
+  }
+
+  private refreshLibraryPanel(): void {
+    const panel = this.overlay.querySelector('#us-tab-panel-library');
+    if (!panel) return;
+    setTrustedHtml(
+      panel as HTMLElement,
+      trustedHtml(this.renderLibraryContent(), 'library taxonomy panel'),
+    );
+    panel.querySelectorAll('.library-refresh-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        void this.loadLibraryTaxonomy(true);
+      });
+    });
   }
 
   // Pending state shown while the plan is still resolving — used both before

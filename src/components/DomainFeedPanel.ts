@@ -1,5 +1,10 @@
 import { Panel } from './Panel';
 import { t } from '@/services/i18n';
+import {
+  generateQuickAction,
+  listPanelDocuments,
+  type NexusPanelDocument,
+} from '@/services/nexus-ingest';
 import { setTrustedHtml, trustedHtml } from '@/utils/dom-utils';
 import { joinSafeHtml, safeHtml, safeHtmlToString, type SafeHtml } from '@/utils/sanitize';
 
@@ -29,6 +34,7 @@ interface ChatMessage {
 }
 
 interface DomainCard {
+  documentId?: string;
   probability: ProbabilityLevel;
   confidence: ConfidenceLevel;
   headline: string;
@@ -294,7 +300,9 @@ function renderCard(
       <span class="domain-feed-probability">${PROBABILITY_LABEL[card.probability]}</span>
       <span class="domain-feed-confidence domain-feed-confidence--${card.confidence}">${CONFIDENCE_LABEL[card.confidence]} confidence</span>
     </div>
-    <h3 class="domain-feed-headline">${card.headline}</h3>
+    ${card.documentId
+      ? safeHtml`<button type="button" class="domain-feed-headline domain-feed-headline--link" data-document-open="${card.documentId}" title="Open extracted document">${card.headline}</button>`
+      : safeHtml`<h3 class="domain-feed-headline">${card.headline}</h3>`}
     <div class="domain-feed-body" data-domain-body>${renderView(card, active, messages)}</div>
     <div class="domain-feed-footer">${card.age}</div>
     ${renderTabs(active)}
@@ -302,20 +310,89 @@ function renderCard(
   </article>`;
 }
 
+function formatAge(iso?: string | null): string {
+  if (!iso) return 'ingested';
+  const then = Date.parse(iso);
+  if (!Number.isFinite(then)) return 'ingested';
+  const minutes = Math.max(0, Math.round((Date.now() - then) / 60_000));
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
+function confidenceFromDoc(value: unknown): ConfidenceLevel {
+  if (typeof value === 'number') {
+    if (value >= 0.75) return 'high';
+    if (value >= 0.4) return 'moderate';
+    return 'low';
+  }
+  const text = String(value ?? '').toLowerCase();
+  if (text.includes('high')) return 'high';
+  if (text.includes('low')) return 'low';
+  return 'moderate';
+}
+
+function cardFromDocument(doc: NexusPanelDocument): DomainCard {
+  const subjects = (doc.subjects ?? []).slice(0, 4).join(', ');
+  const categories = (doc.categories ?? []).slice(0, 4).join(', ');
+  const detail = [categories && `Categories: ${categories}`, subjects && `Subjects: ${subjects}`]
+    .filter(Boolean)
+    .join(' · ');
+  return {
+    documentId: doc.document_id,
+    probability: 'possible',
+    confidence: confidenceFromDoc(doc.confidence),
+    headline: doc.title || doc.filename || 'Untitled document',
+    summary: detail || doc.source || 'Ingested document (Elasticsearch).',
+    gist: 'Open Gist to generate with Qwen.',
+    quickSummary: 'Open Quick Summary to generate with Qwen.',
+    age: formatAge(doc.validated_at),
+  };
+}
+
 /**
- * Domain-scoped intel card feed. Sample cards ship until live domain feeds
- * are wired; Settings → Domains ticks mount/unmount these panels.
+ * Domain-scoped intel cards backed by nexus_ingest → Elasticsearch.
+ * Header UPLOAD ingests files; panels reload on `nexus-ingest:documents-changed`.
  */
 export class DomainFeedPanel extends Panel {
-  private readonly cards: DomainCard[];
+  private cards: DomainCard[] = [];
+  private readonly domain: DomainKind;
   private readonly indicators: string[];
   private readonly source: string;
   private readonly activeViews = new Map<number, DomainView>();
   private readonly chatMessages = new Map<number, ChatMessage[]>();
+  private loadSeq = 0;
+
+  private readonly onDocumentsChanged = (event: Event): void => {
+    const detail = (event as CustomEvent<{ domains?: string[] }>).detail;
+    const domains = detail?.domains ?? [];
+    if (domains.length && !domains.some((d) => d.toLowerCase().includes(this.domain))) {
+      // Still refresh — taxonomy tagging may use aliases.
+    }
+    void this.reloadFromIngest();
+  };
 
   private readonly onTabClick = (event: Event): void => {
     const target = event.target;
     if (!(target instanceof Element)) return;
+
+    const openBtn = target.closest<HTMLButtonElement>('[data-document-open]');
+    if (openBtn && this.content.contains(openBtn)) {
+      const documentId = openBtn.dataset.documentOpen?.trim();
+      if (documentId) {
+        event.preventDefault();
+        void import('@/components/NexusDocumentDetailPanel')
+          .then(({ openNexusDocumentDetail }) => openNexusDocumentDetail(documentId))
+          .catch((err) => {
+            console.error('[DomainFeedPanel] Failed to open document detail:', err);
+          });
+      }
+      return;
+    }
+
     const button = target.closest<HTMLButtonElement>('[data-domain-view]');
     if (!button || !this.content.contains(button)) return;
     const view = button.dataset.domainView;
@@ -325,9 +402,8 @@ export class DomainFeedPanel extends Panel {
     const index = Number(card.dataset.cardIndex);
     if (!Number.isInteger(index) || !this.cards[index]) return;
     event.preventDefault();
-    // Re-clicking the active tab clears it and restores the original info view.
     const nextView: DomainView = this.activeViews.get(index) === view ? 'info' : view;
-    this.setCardView(index, nextView, card);
+    void this.setCardView(index, nextView, card);
   };
 
   private readonly onChatSubmit = (event: Event): void => {
@@ -350,7 +426,7 @@ export class DomainFeedPanel extends Panel {
     thread.push({ role: 'user', text: question });
     thread.push({
       role: 'assistant',
-      text: `Noted. For “${card.headline}”, I can help once live analyst chat is wired. Your question was recorded locally.`,
+      text: `Recorded for “${card.headline}”. Live analyst chat is not wired yet; use Gist / Quick Summary for Qwen output.`,
     });
     this.chatMessages.set(index, thread);
     if (input) input.value = '';
@@ -373,31 +449,94 @@ export class DomainFeedPanel extends Panel {
       infoTooltip: t(meta.tooltipKey),
       showCount: true,
     });
-    this.cards = meta.samples;
+    this.domain = domain;
     this.indicators = meta.indicators;
-    this.source = meta.source;
-    this.cards.forEach((_, index) => {
-      this.activeViews.set(index, 'info');
-      this.chatMessages.set(index, []);
-    });
-    this.setCount(this.cards.length);
-    this.setSafeContent(
-      safeHtml`<div class="domain-feed-list">${joinSafeHtml(
-        this.cards.map((card, index) =>
-          renderCard(card, index, 'info', [], this.indicators, this.source),
-        ),
-      )}</div>`,
+    this.source = 'nexus_ingest / Elasticsearch';
+    // Immediate: debounced setSafeContent can land AFTER a fast ES list response,
+    // so paintCards used to setCount(n) then miss [data-domain-feed-root] and leave
+    // the panel stuck on "Loading…" until the next ingest event.
+    this.setSafeContentImmediate(
+      safeHtml`<div class="domain-feed-list" data-domain-feed-root>
+        <div class="domain-feed-empty">Loading ingested documents…</div>
+      </div>`,
       () => {
         this.content.addEventListener('click', this.onTabClick);
         this.content.addEventListener('submit', this.onChatSubmit);
       },
     );
+    window.addEventListener('nexus-ingest:documents-changed', this.onDocumentsChanged);
+    void this.reloadFromIngest();
   }
 
-  private setCardView(index: number, view: DomainView, cardEl: HTMLElement): void {
+  private paintFeed(body: SafeHtml): void {
+    this.setSafeContentImmediate(
+      safeHtml`<div class="domain-feed-list" data-domain-feed-root">${body}</div>`,
+    );
+  }
+
+  private paintCards(): void {
+    this.activeViews.clear();
+    this.chatMessages.clear();
+    this.cards.forEach((_, index) => {
+      this.activeViews.set(index, 'info');
+      this.chatMessages.set(index, []);
+    });
+    this.setCount(this.cards.length);
+
+    const body = !this.cards.length
+      ? safeHtml`<div class="domain-feed-empty">No ingested documents for this domain yet. Use UPLOAD.</div>`
+      : joinSafeHtml(
+          this.cards.map((card, index) =>
+            renderCard(card, index, 'info', [], this.indicators, this.source),
+          ),
+        );
+    this.paintFeed(body);
+  }
+
+  private async reloadFromIngest(): Promise<void> {
+    const seq = ++this.loadSeq;
+    try {
+      const docs = await listPanelDocuments(this.domain);
+      if (seq !== this.loadSeq) return;
+      this.cards = docs.map(cardFromDocument);
+      this.paintCards();
+    } catch (err) {
+      if (seq !== this.loadSeq) return;
+      console.warn(`[DomainFeedPanel:${this.domain}] ingest load failed`, err);
+      this.cards = [];
+      this.setCount(0);
+      this.paintFeed(
+        safeHtml`<div class="domain-feed-empty">Ingest API unavailable. Start nexus_ingest and check VITE_NEXUS_INGEST_URL.</div>`,
+      );
+    }
+  }
+
+  private async setCardView(index: number, view: DomainView, cardEl: HTMLElement): Promise<void> {
     const card = this.cards[index];
     if (!card) return;
     this.activeViews.set(index, view);
+
+    if ((view === 'gist' || view === 'summary') && card.documentId) {
+      const body = cardEl.querySelector<HTMLElement>('[data-domain-body]');
+      if (body) {
+        setTrustedHtml(
+          body,
+          trustedHtml(
+            safeHtmlToString(safeHtml`<p class="domain-feed-view-text">Generating ${view}…</p>`),
+            'domain-feed generating',
+          ),
+        );
+      }
+      try {
+        const text = await generateQuickAction(card.documentId, view === 'gist' ? 'gist' : 'summary');
+        if (view === 'gist') card.gist = text || card.gist;
+        else card.quickSummary = text || card.quickSummary;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Generation failed';
+        if (view === 'gist') card.gist = message;
+        else card.quickSummary = message;
+      }
+    }
 
     const body = cardEl.querySelector<HTMLElement>('[data-domain-body]');
     if (body) {
@@ -418,6 +557,7 @@ export class DomainFeedPanel extends Panel {
   }
 
   public override destroy(): void {
+    window.removeEventListener('nexus-ingest:documents-changed', this.onDocumentsChanged);
     this.content.removeEventListener('click', this.onTabClick);
     this.content.removeEventListener('submit', this.onChatSubmit);
     super.destroy();

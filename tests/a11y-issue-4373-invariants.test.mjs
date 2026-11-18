@@ -4,7 +4,7 @@
  *     role="tablist" element (PanelTabBar).
  *   - color-contrast: footer copyright, DEFCON badge, and live/webcam "active"
  *     pills must clear WCAG AA 4.5:1.
- *   - select-name: #regionSelect and .cascade-select must carry aria-labels.
+ *   - select-name: #regionMenuTrigger and .cascade-select must carry aria-labels.
  *   - bypass: a <main> landmark and a skip link must exist.
  *   - target-size: map time-range buttons and the layer-help "?" button must
  *     present a >=48x48 hit area.
@@ -97,13 +97,13 @@ describe('PanelTabBar — add button is not a tablist child', () => {
 
 // --- 2. select-name --------------------------------------------------------
 
-describe('select-name — #regionSelect is labelled', () => {
-  it('regionSelect carries an aria-label', () => {
+describe('select-name — region menu trigger is labelled', () => {
+  it('regionMenuTrigger carries an aria-label', () => {
     const line = panelLayout
       .split('\n')
-      .find((l) => l.includes('id="regionSelect"'));
-    assert.ok(line, '#regionSelect must exist');
-    assert.match(line, /aria-label=/, '#regionSelect must have an aria-label');
+      .find((l) => l.includes('id="regionMenuTrigger"'));
+    assert.ok(line, '#regionMenuTrigger must exist');
+    assert.match(line, /aria-label=/, '#regionMenuTrigger must have an aria-label');
   });
 
   it('cascade-select carries an aria-label', () => {
@@ -246,6 +246,16 @@ describe('color-contrast — live/webcam active pills', () => {
 
 describe('target-size — small map controls', () => {
   it('time-range buttons present a >=48px hit area', () => {
+    // Header control owns the live time-range UI; mobile CSS keeps the
+    // 48x48 touch target. Legacy .deckgl-time-slider rules remain as a
+    // fallback for harness / older map chrome.
+    const headerBlocks = [...css.matchAll(/\.header-time-range \.time-btn\s*\{([^}]*)\}/g)];
+    assert.ok(headerBlocks.length >= 1, '.header-time-range .time-btn rule must exist');
+    const headerTouch = headerBlocks.some(
+      (block) => /min-height:\s*48px/.test(block[1]) && /min-width:\s*48px/.test(block[1]),
+    );
+    assert.ok(headerTouch, '.header-time-range .time-btn must include a 48x48 mobile hit area');
+
     const block = css.match(/\.deckgl-time-slider \.time-btn\s*\{([^}]*)\}/);
     assert.ok(block, '.deckgl-time-slider .time-btn rule must exist');
     assert.match(block[1], /min-height:\s*48px/);

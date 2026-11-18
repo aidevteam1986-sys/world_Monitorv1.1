@@ -1277,7 +1277,8 @@
 [data-tv-mode] .copy-link-btn,
 [data-tv-mode] .fullscreen-btn,
 [data-tv-mode] .tv-mode-btn,
-[data-tv-mode] #regionSelect,
+[data-tv-mode] #regionSelector,
+[data-tv-mode] #regionMenuTrigger,
 [data-tv-mode] #langSelect {
   display: none !important;
 }

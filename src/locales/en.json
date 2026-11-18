@@ -1462,6 +1462,8 @@
       "timeAll": "All",
       "views": {
         "global": "Global",
+        "india": "India",
+        "indiaStates": "States & Union Territories",
         "americas": "Americas",
         "mena": "Middle East and North Africa",
         "europe": "Europe",
@@ -2758,7 +2760,7 @@
     },
     "proBanner": {
       "badge": "PRO",
-      "headline": "Strategic Threat Intelligence Platform",
+      "headline": "Strategic Warning Intelligence Platform",
       "tagline": "plus WM Analyst, alert rules and MCP for Claude",
       "cta": "Upgrade to Pro →",
       "dismiss": "Dismiss"

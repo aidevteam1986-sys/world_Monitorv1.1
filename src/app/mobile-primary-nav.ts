@@ -1,7 +1,7 @@
 import type { AppContext } from '@/app/app-context';
-import type { MapView } from '@/components/MapContainer';
 import type { AuthLauncher } from '@/components/AuthLauncher';
 import { AuthHeaderWidget } from '@/components/AuthHeaderWidget';
+import { applyRegionMenuChoice, syncRegionMenuSelection } from '@/app/region-menu';
 import { SITE_VARIANT } from '@/config';
 import { getAuthState, subscribeAuthState } from '@/services/auth-state';
 import { track, trackMapViewChange, trackThemeChanged } from '@/services/analytics';
@@ -226,17 +226,17 @@ export class MobilePrimaryNav {
   private selectRegion(option: HTMLButtonElement, sheet: HTMLElement): void {
     const region = option.dataset.region;
     if (!region) return;
-    this.ctx.map?.setView(region as MapView);
-    trackMapViewChange(region);
-    const select = document.getElementById('regionSelect') as HTMLSelectElement | null;
-    if (select) select.value = region;
+    const applied = applyRegionMenuChoice(this.ctx.map, region);
+    if (!applied) return;
+    trackMapViewChange(applied.id);
+    syncRegionMenuSelection(applied);
     sheet.querySelectorAll('.region-sheet-option').forEach((item) => {
       item.classList.toggle('active', item === option);
       const check = item.querySelector('.region-sheet-check');
       if (check) check.textContent = item === option ? '✓' : '';
     });
     const label = document.getElementById('mobileMenuRegion')?.querySelector('.mobile-menu-item-label');
-    if (label) label.textContent = option.querySelector('span')?.textContent ?? '';
+    if (label) label.textContent = applied.label;
     this.closeRegion();
   }
 

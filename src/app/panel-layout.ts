@@ -47,7 +47,10 @@ import {
   enforceFreePanelLimit,
 } from '@/config';
 import { BETA_MODE } from '@/config/beta';
+import { INDIA_STATES } from '@/config/india-regions';
 import { NQ_PULSE_DISCLOSURE } from '@/config/nq-context';
+import { selectionFromMapView, syncRegionMenuSelection } from '@/app/region-menu';
+import { renderHeaderTimeRange, syncHeaderTimeRange } from '@/app/header-time-range';
 import { t } from '@/services/i18n';
 import { getPanelDisplayName } from '@/services/panel-display-name';
 import { getCurrentTheme } from '@/utils';
@@ -1141,132 +1144,31 @@ export class PanelLayoutManager implements AppModule {
       <div id="proBannerSlot" class="pro-banner-slot" aria-live="polite"></div>
       <div class="header" role="banner">
         <div class="header-left">
-          <div class="variant-switcher">${(() => {
-        const local = this.ctx.isDesktopApp || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-        const inIframe = window.self !== window.top;
-        const vHref = (v: keyof typeof VARIANT_SWITCHER_DASHBOARD_URLS) =>
-          variantSwitcherHref(v, SITE_VARIANT, local);
-        const vTarget = (v: string) => !local && SITE_VARIANT !== v && inIframe ? 'target="_blank" rel="noopener"' : '';
-        return `
-            <a href="${vHref('full')}"
-               class="variant-option ${SITE_VARIANT === 'full' ? 'active' : ''}"
-               data-variant="full"
-               ${vTarget('full')}
-               title="POLITICAL${SITE_VARIANT === 'full' ? ` ${t('common.currentVariant')}` : ''}">
-              <span class="variant-icon">🌍</span>
-              <span class="variant-label">POLITICAL</span>
-            </a>
-            <span class="variant-divider"></span>
-            <a href="${vHref('tech')}"
-               class="variant-option ${SITE_VARIANT === 'tech' ? 'active' : ''}"
-               data-variant="tech"
-               ${vTarget('tech')}
-               title="DIPLOMATIC${SITE_VARIANT === 'tech' ? ` ${t('common.currentVariant')}` : ''}">
-              <span class="variant-icon">💻</span>
-              <span class="variant-label">DIPLOMATIC</span>
-            </a>
-            <span class="variant-divider"></span>
-            <a href="${vHref('finance')}"
-               class="variant-option ${SITE_VARIANT === 'finance' ? 'active' : ''}"
-               data-variant="finance"
-               ${vTarget('finance')}
-               title="INTERNATIONAL${SITE_VARIANT === 'finance' ? ` ${t('common.currentVariant')}` : ''}">
-              <span class="variant-icon">📈</span>
-              <span class="variant-label">INTERNATIONAL</span>
-            </a>
-            <span class="variant-divider"></span>
-            <a href="${vHref('commodity')}"
-               class="variant-option ${SITE_VARIANT === 'commodity' ? 'active' : ''}"
-               data-variant="commodity"
-               ${vTarget('commodity')}
-               title="CYBER${SITE_VARIANT === 'commodity' ? ` ${t('common.currentVariant')}` : ''}">
-              <span class="variant-icon">⛏️</span>
-              <span class="variant-label">CYBER</span>
-            </a>
-            <span class="variant-divider"></span>
-            <a href="${vHref('energy')}"
-               class="variant-option ${SITE_VARIANT === 'energy' ? 'active' : ''}"
-               data-variant="energy"
-               ${vTarget('energy')}
-               title="ECONOMY${SITE_VARIANT === 'energy' ? ` ${t('common.currentVariant')}` : ''}">
-              <span class="variant-icon">⚡</span>
-              <span class="variant-label">ECONOMY</span>
-            </a>
-            <span class="variant-divider"></span>
-            <a href="${vHref('happy')}"
-               class="variant-option ${SITE_VARIANT === 'happy' ? 'active' : ''}"
-               data-variant="happy"
-               ${vTarget('happy')}
-               title="TECH${SITE_VARIANT === 'happy' ? ` ${t('common.currentVariant')}` : ''}">
-              <span class="variant-icon">☀️</span>
-              <span class="variant-label">TECH</span>
-            </a>
-            <span class="variant-divider"></span>
-            <a href="#"
-               class="variant-option"
-               data-placeholder="true"
-               title="HEALTH">
-              <span class="variant-icon">⚖️</span>
-              <span class="variant-label">HEALTH</span>
-            </a>
-            <span class="variant-divider"></span>
-            <a href="#"
-               class="variant-option"
-               data-placeholder="true"
-               title="ENVMT/CLIMATE">
-              <span class="variant-icon">🛡️</span>
-              <span class="variant-label">ENVMT/CLIMATE</span>
-            </a>
-            <span class="variant-divider"></span>
-            <a href="#"
-               class="variant-option"
-               data-placeholder="true"
-               title="WEAPONS">
-              <span class="variant-icon">🚢</span>
-              <span class="variant-label">WEAPONS</span>
-            </a>
-            <span class="variant-divider"></span>
-            <a href="#"
-               class="variant-option"
-               data-placeholder="true"
-               title="PUBLIC HEALTH">
-              <span class="variant-icon">🌡️</span>
-              <span class="variant-label">PUBLIC HEALTH</span>
-            </a>
-            <span class="variant-divider"></span>
-            <a href="#"
-               class="variant-option"
-               data-placeholder="true"
-               title="DEFENSE">
-              <span class="variant-icon">🪖</span>
-              <span class="variant-label">DEFENSE</span>
-            </a>
-            <span class="variant-divider"></span>
-            <a href="#"
-               class="variant-option"
-               data-placeholder="true"
-               title="Int">
-              <span class="variant-icon">🌐</span>
-              <span class="variant-label">Int</span>
-            </a>`;
-      })()}</div>
-          <span class="logo">DOMAINS</span><span class="logo-mobile">World Monitor</span>${BETA_MODE ? '<span class="beta-badge">BETA</span>' : ''}
+          <span class="logo">Territories</span><span class="logo-mobile">World Monitor</span>${BETA_MODE ? '<span class="beta-badge">BETA</span>' : ''}
           <button class="mobile-settings-btn" id="mobileSettingsBtn" title="${t('header.settings')}" aria-label="${t('header.settings')}">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
-          <div class="region-selector">
-            <select id="regionSelect" class="region-select" aria-label="${t('header.selectRegion')}">
-              <option value="global">${t('components.deckgl.views.global')}</option>
-              <option value="america">${t('components.deckgl.views.americas')}</option>
-              <option value="mena">${t('components.deckgl.views.mena')}</option>
-              <option value="eu">${t('components.deckgl.views.europe')}</option>
-              <option value="asia">${t('components.deckgl.views.asia')}</option>
-              <option value="latam">${t('components.deckgl.views.latam')}</option>
-              <option value="africa">${t('components.deckgl.views.africa')}</option>
-              <option value="oceania">${t('components.deckgl.views.oceania')}</option>
-            </select>
+          <div class="region-selector" id="regionSelector">
+            <button type="button" class="region-menu-trigger" id="regionMenuTrigger" data-selected="global" aria-haspopup="true" aria-expanded="false" aria-label="${t('header.selectRegion')}">
+              <span id="regionMenuLabel">${t('components.deckgl.views.global')}</span>
+            </button>
+            <div class="region-menu" id="regionMenu" hidden>
+              <button type="button" class="region-menu-item" data-region="global">${t('components.deckgl.views.global')}</button>
+              <div class="region-menu-flyout">
+                <button type="button" class="region-menu-item region-menu-parent" data-region="india">
+                  <span>${t('components.deckgl.views.india')}</span>
+                  <span class="region-menu-caret" aria-hidden="true">›</span>
+                </button>
+                <div class="region-submenu" role="menu" aria-label="${t('components.deckgl.views.indiaStates')}">
+                  ${INDIA_STATES.map((state) =>
+                    `<button type="button" class="region-submenu-item" data-region="${state.id}" role="menuitem">${state.name}</button>`
+                  ).join('')}
+                </div>
+              </div>
+            </div>
           </div>
           <span id="missionPresetMount" class="mission-preset-mount"></span>
+          <span id="headerTimeRangeMount" class="header-time-range-mount" aria-live="polite"></span>
           <button class="mobile-search-btn" id="mobileSearchBtn" aria-label="${t('header.search')}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </button>
@@ -1295,24 +1197,6 @@ export class PanelLayoutManager implements AppModule {
           <div id="mobileAuthWidgetMount"></div>
           <button class="mobile-auth-fallback" id="mobileAuthFallback" type="button">Sign In</button>
         </div>
-        <div class="mobile-menu-divider"></div>
-        ${(() => {
-        const variants = [
-          { key: 'full', icon: '🌍', label: 'POLITICAL' },
-          { key: 'tech', icon: '💻', label: 'DIPLOMATIC' },
-          { key: 'finance', icon: '📈', label: 'INTERNATIONAL' },
-          { key: 'commodity', icon: '⛏️', label: 'CYBER' },
-          { key: 'energy', icon: '⚡', label: 'ECONOMY' },
-          { key: 'happy', icon: '☀️', label: 'TECH' },
-        ];
-        return variants.map(v =>
-          `<button class="mobile-menu-item mobile-menu-variant ${v.key === SITE_VARIANT ? 'active' : ''}" data-variant="${v.key}">
-            <span class="mobile-menu-item-icon">${v.icon}</span>
-            <span class="mobile-menu-item-label">${v.label}</span>
-            ${v.key === SITE_VARIANT ? '<span class="mobile-menu-check">✓</span>' : ''}
-          </button>`
-        ).join('');
-      })()}
         <div class="mobile-menu-divider"></div>
         <button class="mobile-menu-item" id="mobileMenuRegion">
           <span class="mobile-menu-item-icon">🌐</span>
@@ -1350,21 +1234,21 @@ export class PanelLayoutManager implements AppModule {
       <div class="region-bottom-sheet" id="regionBottomSheet">
         <div class="region-sheet-header">${t('header.selectRegion')}</div>
         <div class="region-sheet-divider"></div>
-        ${[
-        { value: 'global', label: t('components.deckgl.views.global') },
-        { value: 'america', label: t('components.deckgl.views.americas') },
-        { value: 'mena', label: t('components.deckgl.views.mena') },
-        { value: 'eu', label: t('components.deckgl.views.europe') },
-        { value: 'asia', label: t('components.deckgl.views.asia') },
-        { value: 'latam', label: t('components.deckgl.views.latam') },
-        { value: 'africa', label: t('components.deckgl.views.africa') },
-        { value: 'oceania', label: t('components.deckgl.views.oceania') },
-      ].map(r =>
-        `<button class="region-sheet-option ${r.value === 'global' ? 'active' : ''}" data-region="${r.value}">
-          <span>${r.label}</span>
-          <span class="region-sheet-check">${r.value === 'global' ? '✓' : ''}</span>
-        </button>`
-      ).join('')}
+        <button class="region-sheet-option active" data-region="global">
+          <span>${t('components.deckgl.views.global')}</span>
+          <span class="region-sheet-check">✓</span>
+        </button>
+        <button class="region-sheet-option" data-region="india">
+          <span>${t('components.deckgl.views.india')}</span>
+          <span class="region-sheet-check"></span>
+        </button>
+        <div class="region-sheet-subgroup-label">${t('components.deckgl.views.indiaStates')}</div>
+        ${INDIA_STATES.map((state) =>
+          `<button class="region-sheet-option region-sheet-option--nested" data-region="${state.id}">
+            <span>${state.name}</span>
+            <span class="region-sheet-check"></span>
+          </button>`
+        ).join('')}
       </div>
       <div class="dashboard-tabs-mount" id="panelTabsMount"></div>
       <main id="main" tabindex="-1" class="main-content${mapRightClassActive ? ' map-right' : ''}"${mapColWidthStyle}>
@@ -3617,8 +3501,12 @@ export class PanelLayoutManager implements AppModule {
     this.ctx.currentTimeRange = this.ctx.map.getTimeRange();
     markLcpDebug('wm:map:container-ready');
 
+    renderHeaderTimeRange(this.ctx.currentTimeRange, (range) => {
+      this.ctx.map?.setTimeRange(range);
+    });
     this.ctx.map.onTimeRangeChanged((range) => {
       this.ctx.currentTimeRange = range;
+      syncHeaderTimeRange(range);
       this.applyTimeRangeFilterDebounced();
     });
 
@@ -3775,11 +3663,8 @@ export class PanelLayoutManager implements AppModule {
       this.ctx.map.setZoom(zoom);
     }
 
-    const regionSelect = document.getElementById('regionSelect') as HTMLSelectElement;
     const currentView = this.ctx.map.getState().view;
-    if (regionSelect && currentView) {
-      regionSelect.value = currentView;
-    }
+    if (currentView) syncRegionMenuSelection(selectionFromMapView(currentView));
   }
 
   private addDynamicPanel(key: string, panel: Panel): void {

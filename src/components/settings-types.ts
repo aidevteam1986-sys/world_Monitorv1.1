@@ -9,7 +9,9 @@ export type UnifiedSettingsTabId =
   | 'billing'
   | 'panels'
   | 'sources'
+  | 'library'
+  | 'embeds'
+  // Kept for deep-link / open() callers; normalized away when not in availableTabs.
   | 'notifications'
   | 'api-keys'
-  | 'embeds'
   | 'mcp-clients';

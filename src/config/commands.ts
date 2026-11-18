@@ -36,6 +36,7 @@ export const LAYER_KEY_MAP: Record<string, keyof MapLayers> = {
 export const COMMANDS: Command[] = [
   // Navigation (region switching)
   { id: 'nav:global', keywords: ['global', 'world', 'reset', 'home'], label: 'Map: Global view', icon: '\u{1F30D}', category: 'navigate' },
+  { id: 'nav:india', keywords: ['india', 'bharat', 'indian states'], label: 'Map: India', icon: '\u{1F1EE}\u{1F1F3}', category: 'navigate' },
   { id: 'nav:mena', keywords: ['mena', 'middle east', 'mideast'], label: 'Map: Middle East & North Africa', icon: '\u{1F54C}', category: 'navigate' },
   { id: 'nav:eu', keywords: ['europe', 'eu'], label: 'Map: Europe', icon: '\u{1F3F0}', category: 'navigate' },
   { id: 'nav:asia', keywords: ['asia', 'pacific'], label: 'Map: Asia-Pacific', icon: '\u{1F3EF}', category: 'navigate' },

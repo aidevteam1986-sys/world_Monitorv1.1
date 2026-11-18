@@ -100,7 +100,7 @@ import { resolveClusterGlContext } from './map-cluster-gl';
 
 
 export type TimeRange = '1h' | '6h' | '24h' | '48h' | '7d' | 'all';
-export type MapView = 'global' | 'america' | 'mena' | 'eu' | 'asia' | 'latam' | 'africa' | 'oceania';
+export type MapView = 'global' | 'india' | 'america' | 'mena' | 'eu' | 'asia' | 'latam' | 'africa' | 'oceania';
 
 export interface MapState {
   zoom: number;
@@ -362,7 +362,7 @@ export class MapComponent {
     container.appendChild(this.wrapper);
     if (chrome) {
       container.appendChild(this.createControls());
-      container.appendChild(this.createTimeSlider());
+      // Time range lives in #headerTimeRangeMount (right of Indicators).
       container.appendChild(this.createLayerToggles());
       container.appendChild(this.createLegend());
       this.healthCheckLoop = startSmartPollLoop(() => { this.runHealthCheck(); }, {
@@ -542,47 +542,10 @@ export class MapComponent {
     return controls;
   }
 
-  private createTimeSlider(): HTMLElement {
-    const slider = document.createElement('div');
-    slider.className = 'time-slider';
-    slider.id = 'timeSlider';
-
-    const ranges: { value: TimeRange; label: string }[] = [
-      { value: '1h', label: '1H' },
-      { value: '6h', label: '6H' },
-      { value: '24h', label: '24H' },
-      { value: '48h', label: '48H' },
-      { value: '7d', label: '7D' },
-      { value: 'all', label: 'ALL' },
-    ];
-
-    setTrustedHtml(slider, trustedHtml(`
-      <span class="time-slider-label">TIME RANGE</span>
-      <div class="time-slider-buttons">
-        ${ranges
-        .map(
-          (r) =>
-            `<button class="time-btn ${this.state.timeRange === r.value ? 'active' : ''}" data-range="${r.value}">${r.label}</button>`
-        )
-        .join('')}
-      </div>
-    `, "legacy direct innerHTML migration"));
-
-    slider.addEventListener('click', (e) => {
-      const target = e.target as HTMLElement;
-      if (target.classList.contains('time-btn')) {
-        const range = target.dataset.range as TimeRange;
-        this.setTimeRange(range);
-        slider.querySelectorAll('.time-btn').forEach((btn) => btn.classList.remove('active'));
-        target.classList.add('active');
-      }
-    });
-
-    return slider;
-  }
-
   private updateTimeSliderButtons(): void {
-    const slider = this.container.querySelector('#timeSlider');
+    const slider =
+      document.getElementById('headerTimeRangeMount') ??
+      this.container.querySelector('#timeSlider');
     if (!slider) return;
     slider.querySelectorAll('.time-btn').forEach((btn) => {
       const range = (btn as HTMLElement).dataset.range as TimeRange | undefined;
@@ -4468,6 +4431,7 @@ export class MapComponent {
     // Pan: +x = west, -x = east, +y = north, -y = south
     const viewSettings: Record<MapView, { zoom: number; pan: { x: number; y: number } }> = {
       global: { zoom: 1, pan: { x: 0, y: 0 } },
+      india: { zoom: 3.2, pan: { x: -220, y: 10 } },
       america: { zoom: 1.8, pan: { x: 180, y: 30 } },
       mena: { zoom: 3.5, pan: { x: -100, y: 50 } },
       eu: { zoom: 2.4, pan: { x: -30, y: 100 } },

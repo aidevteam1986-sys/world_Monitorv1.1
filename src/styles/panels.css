@@ -3559,6 +3559,29 @@ a.hub-top-story {
   margin: 0;
 }
 
+button.domain-feed-headline--link {
+  appearance: none;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  font-size: calc(13px * var(--wm-panel-effective-scale, 1));
+  line-height: 1.45;
+  font-weight: 700;
+  color: var(--text, #e5e7eb);
+}
+
+button.domain-feed-headline--link:hover,
+button.domain-feed-headline--link:focus-visible {
+  color: var(--accent, #60a5fa);
+  text-decoration: underline;
+  outline: none;
+}
+
 .domain-feed-body {
   min-height: 72px;
   padding: 10px;
@@ -3753,6 +3776,489 @@ a.hub-top-story {
 .domain-feed-source {
   font-size: calc(11px * var(--wm-panel-effective-scale, 1));
   color: var(--text-muted, #9ca3af);
+}
+
+/* Nexus extracted-document detail (title click → Elasticsearch full doc) */
+.nexus-document-detail {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(640px, 100vw);
+  height: 100vh;
+  z-index: 5000;
+  border-left: 1px solid var(--border, #2a2f3a);
+  background: var(--panel-bg, var(--surface, #111827));
+  box-shadow: -8px 0 32px color-mix(in srgb, var(--overlay-heavy, rgba(0, 0, 0, 0.35)) 65%, transparent);
+  transform: translateX(calc(100% + 30px));
+  transition: transform 0.28s ease;
+  will-change: transform;
+  contain: layout paint;
+}
+
+.nexus-document-detail[aria-hidden="true"] {
+  transition: transform 0.28s ease, visibility 0s linear 0.28s;
+  visibility: hidden;
+}
+
+.nexus-document-detail.active {
+  transform: none;
+  visibility: visible;
+}
+
+.nexus-document-detail-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.nexus-document-detail .ndd-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--border-subtle, #2a2f3a);
+}
+
+.nexus-document-detail .ndd-header-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.nexus-document-detail .ndd-crumb {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: calc(10px * var(--wm-panel-effective-scale, 1));
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-faint, #6b7280);
+  margin-bottom: 6px;
+}
+
+.nexus-document-detail .ndd-title {
+  margin: 0;
+  font-size: calc(18px * var(--wm-panel-effective-scale, 1));
+  line-height: 1.3;
+  font-weight: 700;
+  color: var(--text, #e5e7eb);
+}
+
+.nexus-document-detail .ndd-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.nexus-document-detail .ndd-pill {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: calc(10px * var(--wm-panel-effective-scale, 1));
+  color: var(--text-muted, #9ca3af);
+  border: 1px solid var(--border-subtle, #3f4654);
+  border-radius: 3px;
+  padding: 3px 7px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.nexus-document-detail .panel-close {
+  flex-shrink: 0;
+  border: 1px solid var(--border, #2a2f3a);
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  background: var(--surface, #1f2937);
+  color: var(--text, #e5e7eb);
+  cursor: pointer;
+}
+
+.nexus-document-detail .ndd-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border-subtle, #2a2f3a);
+}
+
+.nexus-document-detail .ndd-tab {
+  appearance: none;
+  border: 1px solid var(--border-subtle, #3f4654);
+  background: transparent;
+  color: var(--text-muted, #9ca3af);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: calc(10px * var(--wm-panel-effective-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  padding: 5px 9px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.nexus-document-detail .ndd-tab:hover {
+  color: var(--text, #e5e7eb);
+}
+
+.nexus-document-detail .ndd-tab.is-active {
+  color: var(--text, #e5e7eb);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--accent, #60a5fa);
+}
+
+.nexus-document-detail .panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 18px 24px;
+  content-visibility: visible;
+  overscroll-behavior: contain;
+}
+
+.nexus-document-detail .ndd-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.nexus-document-detail .ndd-section-title {
+  margin: 0;
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--text-muted, #9ca3af);
+}
+
+.nexus-document-detail .ndd-meta-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.nexus-document-detail .ndd-meta-label {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: calc(9px * var(--wm-panel-effective-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-faint, #6b7280);
+}
+
+.nexus-document-detail .ndd-meta-empty {
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+  color: var(--text-faint, #6b7280);
+}
+
+.nexus-document-detail .ndd-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.nexus-document-detail .ndd-chip {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: calc(10px * var(--wm-panel-effective-scale, 1));
+  color: var(--text-muted, #9ca3af);
+  border: 1px solid var(--border-subtle, #3f4654);
+  padding: 3px 7px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.nexus-document-detail .ndd-chip--threat {
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.nexus-document-detail .ndd-full-text {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: calc(13px * var(--wm-panel-effective-scale, 1));
+  line-height: 1.55;
+  color: var(--text, #e5e7eb);
+  padding: 12px;
+  border: 1px solid var(--border-subtle, #2a2f3a);
+  background: var(--bg-primary, rgba(0, 0, 0, 0.12));
+  max-height: min(55vh, 520px);
+  overflow: auto;
+}
+
+.nexus-document-detail .ndd-prose,
+.nexus-document-detail .ndd-status {
+  margin: 0;
+  font-size: calc(13px * var(--wm-panel-effective-scale, 1));
+  line-height: 1.5;
+  color: var(--text-muted, #9ca3af);
+}
+
+.nexus-document-detail .ndd-status--error {
+  color: #f87171;
+}
+
+.nexus-document-detail .ndd-related-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nexus-document-detail .ndd-related-link {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--accent, #60a5fa);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+}
+
+.nexus-document-detail .ndd-related-link:hover {
+  text-decoration: underline;
+}
+
+/* Nexus multi-file upload modal (raw → auto-tag progress UX) */
+.nexus-upload-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10030;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.nexus-upload-overlay.active {
+  display: flex;
+}
+
+.nexus-upload-modal {
+  width: min(520px, 100%);
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border, #2a2f3a);
+  border-radius: 8px;
+  background: var(--panel-bg, #111827);
+  box-shadow: 0 24px 80px var(--shadow-color, rgba(0, 0, 0, 0.45));
+}
+
+.nexus-upload-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--border-subtle, #2a2f3a);
+}
+
+.nexus-upload-header h2 {
+  margin: 0;
+  font-size: calc(16px * var(--wm-panel-effective-scale, 1));
+  font-weight: 700;
+  color: var(--text, #e5e7eb);
+}
+
+.nexus-upload-summary {
+  margin: 6px 0 0;
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+  color: var(--text-muted, #9ca3af);
+}
+
+.nexus-upload-close {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border, #2a2f3a);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim, #9ca3af);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.nexus-upload-close:hover,
+.nexus-upload-close:focus-visible {
+  color: var(--text, #e5e7eb);
+  border-color: var(--accent, #60a5fa);
+  outline: none;
+}
+
+.nexus-upload-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 18px;
+  overflow: auto;
+}
+
+.nexus-upload-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 8px 12px;
+  border: 1px dashed var(--border, #3f4654);
+  border-radius: 6px;
+  color: var(--text-muted, #9ca3af);
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+  cursor: pointer;
+}
+
+.nexus-upload-picker input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.nexus-upload-picker:hover {
+  border-color: var(--accent, #60a5fa);
+  color: var(--text, #e5e7eb);
+}
+
+.nexus-upload-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: min(48vh, 420px);
+  overflow: auto;
+}
+
+.nexus-upload-empty {
+  margin: 0;
+  padding: 18px 8px;
+  text-align: center;
+  color: var(--text-faint, #6b7280);
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+}
+
+.nexus-upload-row {
+  border: 1px solid var(--border-subtle, #2a2f3a);
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.nexus-upload-row-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.nexus-upload-spinner,
+.nexus-upload-spinner-slot {
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.nexus-upload-spinner {
+  border: 2px solid var(--border, #3f4654);
+  border-top-color: #a78bfa;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+.nexus-upload-row-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.nexus-upload-filename {
+  font-size: calc(13px * var(--wm-panel-effective-scale, 1));
+  font-weight: 600;
+  color: var(--text, #e5e7eb);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nexus-upload-status {
+  margin-top: 2px;
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
+  color: var(--text-muted, #9ca3af);
+}
+
+.nexus-upload-bar {
+  margin-top: 8px;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.nexus-upload-bar-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  transition: width 0.18s ease;
+}
+
+.nexus-upload-bar-fill--upload {
+  background: #3b82f6;
+}
+
+.nexus-upload-bar-fill--tag {
+  background: #8b5cf6;
+}
+
+.nexus-upload-bar-fill--success {
+  background: #22c55e;
+}
+
+.nexus-upload-bar-fill--error {
+  background: #ef4444;
+}
+
+.nexus-upload-bar-fill--idle {
+  background: transparent;
+}
+
+.nexus-upload-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px 16px;
+  border-top: 1px solid var(--border-subtle, #2a2f3a);
+}
+
+.nexus-upload-btn {
+  appearance: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.nexus-upload-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.nexus-upload-btn--ghost {
+  border: 1px solid var(--border, #2a2f3a);
+  background: transparent;
+  color: var(--text-muted, #9ca3af);
+}
+
+.nexus-upload-btn--primary {
+  border: 1px solid transparent;
+  background: var(--accent, #3b82f6);
+  color: #fff;
 }
 
 /* Climate News Panel */

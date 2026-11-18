@@ -29,6 +29,11 @@ import type { McpDataPanel } from '@/components/McpDataPanel';
 import { deleteMcpPanel, getMcpPanel, saveMcpPanel } from '@/services/mcp-store';
 import type { PanelConfig, MapLayers, MilitaryFlight } from '@/types';
 import type { MapView } from '@/components/MapContainer';
+import {
+  applyRegionMenuChoice,
+  selectionFromMapView,
+  syncRegionMenuSelection,
+} from '@/app/region-menu';
 import type { PositionSample } from '@/services/aviation';
 import type { ClusteredEvent } from '@/types';
 import type { DashboardSnapshot } from '@/services/storage';
@@ -60,6 +65,7 @@ import {
 import { resolveNewsCategories, enabledNewsCategoryKeys } from '@/config/feed-resolution';
 import { VARIANT_META } from '@/config/variant-meta';
 import { isDesktopRuntime } from '@/services/runtime';
+import { openNexusUploadModal } from '@/components/NexusUploadModal';
 import {
   applyMissionPresetToState,
   clearMissionPreset,
@@ -732,7 +738,15 @@ export class EventHandlerManager implements AppModule {
     });
 
     document.getElementById('headerUploadBtn')?.addEventListener('click', () => {
-      document.getElementById('headerUploadInput')?.click();
+      openNexusUploadModal();
+    });
+    // Hidden header file input remains for keyboard/legacy hooks; open the same modal.
+    document.getElementById('headerUploadInput')?.addEventListener('change', (event) => {
+      const input = event.target as HTMLInputElement | null;
+      const files = input?.files ? Array.from(input.files) : [];
+      if (input) input.value = '';
+      if (!files.length) return;
+      openNexusUploadModal(files);
     });
 
     this.initDownloadDropdown();
@@ -883,11 +897,7 @@ export class EventHandlerManager implements AppModule {
       document.addEventListener('fullscreenchange', this.boundFullscreenHandler);
     }
 
-    const regionSelect = document.getElementById('regionSelect') as HTMLSelectElement;
-    regionSelect?.addEventListener('change', () => {
-      this.ctx.map?.setView(regionSelect.value as MapView);
-      trackMapViewChange(regionSelect.value);
-    });
+    this.setupRegionMenu();
 
     this.boundResizeHandler = debounce(() => {
       this.ctx.map?.setIsResizing(false);
@@ -955,6 +965,51 @@ export class EventHandlerManager implements AppModule {
       };
       document.addEventListener('click', this.boundDesktopExternalLinkHandler, true);
     }
+  }
+
+  private setupRegionMenu(): void {
+    const selector = document.getElementById('regionSelector');
+    const trigger = document.getElementById('regionMenuTrigger');
+    const menu = document.getElementById('regionMenu');
+    if (!selector || !trigger || !menu) return;
+
+    const closeMenu = (): void => {
+      menu.hidden = true;
+      trigger.setAttribute('aria-expanded', 'false');
+      selector.classList.remove('open');
+    };
+
+    const openMenu = (): void => {
+      menu.hidden = false;
+      trigger.setAttribute('aria-expanded', 'true');
+      selector.classList.add('open');
+    };
+
+    trigger.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (menu.hidden) openMenu();
+      else closeMenu();
+    });
+
+    menu.addEventListener('click', (event) => {
+      const target = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-region]');
+      if (!target?.dataset.region) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const applied = applyRegionMenuChoice(this.ctx.map, target.dataset.region);
+      if (!applied) return;
+      syncRegionMenuSelection(applied);
+      trackMapViewChange(applied.id);
+      closeMenu();
+    });
+
+    document.addEventListener('click', (event) => {
+      if (!selector.contains(event.target as Node)) closeMenu();
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !menu.hidden) closeMenu();
+    });
   }
 
   private setupMissionPresets(): void {
@@ -1590,11 +1645,12 @@ export class EventHandlerManager implements AppModule {
 
     this.ctx.map.onStateChanged(() => {
       this.debouncedUrlSync();
-      const regionSelect = document.getElementById('regionSelect') as HTMLSelectElement;
-      if (regionSelect && this.ctx.map) {
-        const state = this.ctx.map.getState();
-        if (regionSelect.value !== state.view) {
-          regionSelect.value = state.view;
+      if (this.ctx.map) {
+        const trigger = document.getElementById('regionMenuTrigger');
+        const selected = trigger?.dataset.selected;
+        // Preserve an India-state flyout selection while the map view stays `india`.
+        if (!(selected?.startsWith('in-') && this.ctx.map.getState().view === 'india')) {
+          syncRegionMenuSelection(selectionFromMapView(this.ctx.map.getState().view));
         }
       }
       this.debouncedWebcamReload();
@@ -2572,7 +2628,7 @@ export class EventHandlerManager implements AppModule {
     // would otherwise accumulate anonymous listeners that retain the
     // stale AppContext closure — every click would fire all of them.
     this.boundNotifyForCountryHandler = (_e: Event) => {
-      this.ctx.unifiedSettings?.open('notifications');
+      this.ctx.unifiedSettings?.open('library');
     };
     window.addEventListener(
       WM_OPEN_NOTIFICATIONS_FOR_COUNTRY,
